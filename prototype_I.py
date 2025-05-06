@@ -1,25 +1,15 @@
 from typing import OrderedDict
-import dlib
 import cv2
-from imutils import face_utils
 import sys, os, argparse
 import tensorflow as tf
 from collections import deque
+import mediapipe as mp
+
 
 # Import additional functions
 sys.path.append(os.path.join("lib"))
 import video_adjuster_functions as vid_adj_fun, fifo_manager as fifo, graphic_functions as gf
 
-FACIAL_LANDMARKS_68_IDXS = OrderedDict([
-    ("mouth", (48, 68)),
-    ("inner_mouth", (60, 68)),
-    ("right_eyebrow", (17, 22)),
-    ("left_eyebrow", (22, 27)),
-    ("right_eye", (36, 42)),
-    ("left_eye", (42, 48)),
-    ("nose", (27, 36)),
-    ("jaw", (0, 17))
-])
 
 # Configurações do gráfico
 COLOR_STD = (0, 0, 255)    # Vermelho - padrão
@@ -34,7 +24,7 @@ LAST_COLOR = COLOR_STD
 SEAL_COUNTER = 0
 
 
-def camera_capture_with_canvas(detector, predictor, display):
+def camera_capture_with_canvas(display):
     """
     Captures frames from the camera and displays them on a canvas with sections for the camera, scatter plot, and line chart.
     Adds an additional line chart below the existing one, showing raw (non-normalized) measures.
@@ -44,7 +34,7 @@ def camera_capture_with_canvas(detector, predictor, display):
     cap = cv2.VideoCapture(0)
 
     #paths for the NN model
-    model_path = r"C:\Users\joao.miranda\Documents\POC\Neural Network [POC]\model_for_3_emotions.keras"
+    model_path = r"C:\Users\joao.miranda\Documents\POC\POC_jetson_media_pipe\Neural Network [POC]\model_for_3_emotions.keras"
     model = tf.keras.models.load_model(model_path)
 
     if not cap.isOpened():
@@ -67,91 +57,102 @@ def camera_capture_with_canvas(detector, predictor, display):
     time_series_buffer_normalized = [0] * 200
     time_series_buffer_raw = [0] * 200
 
-    while True:
-        ret, img_all = cap.read()
 
-        if not ret or img_all is None:
-            print("Error capturing frame from the camera.")
-            break
+    mp_face_mesh = mp.solutions.face_mesh
+    with mp_face_mesh.FaceMesh(static_image_mode=False,
+                           max_num_faces=1,
+                           refine_landmarks=True,
+                           min_detection_confidence=0.5,
+                           min_tracking_confidence=0.5) as face_mesh:
+        while True:
+            ret, img_all = cap.read()
 
-        img_gray = cv2.cvtColor(img_all, cv2.COLOR_BGR2GRAY)
-        faces = detector(img_gray, 0)
-
-        if len(faces) != 0:
-            face = faces[0]
-            landmarks = face_utils.shape_to_np(predictor(img_gray, face))
-
-            # Normalized and raw points
-            CENTER_NOSE_BASED_POINTS_NORMALIZED = gf.normalization(landmarks, (gf.normal_height_img, gf.normal_width_img))
-            CENTER_NOSE_BASED_POINTS_RAW = landmarks  # Direct raw points without normalization
-
-            # Overlay landmarks on the original frame before resizing
-            for (x, y) in landmarks:
-                cv2.circle(img_all, (x, y), 2, (0, 255, 0), -1)
-
-            # Resize the camera frame to the designated section
-            camera_frame = cv2.resize(img_all, (camera_space[0], camera_space[1]))
-
-            canvas[positions["camera"][1]:positions["camera"][1] + camera_space[1],
-                   positions["camera"][0]:positions["camera"][0] + camera_space[0]] = camera_frame
-
-            # Plot points in the scatter section
-            canvas = gf.plot_scatter(canvas, scatter_space, positions["scatter"], CENTER_NOSE_BASED_POINTS_NORMALIZED)
-
-            # Calculate measures and update buffers
-            measures_normalized = gf.calculate_measures_distances(CENTER_NOSE_BASED_POINTS_NORMALIZED)
-            measures_raw = gf.calculate_measures_distances(CENTER_NOSE_BASED_POINTS_RAW)
-
-            new_value_norm = measures_normalized["m3"] if measures_normalized else None
-            new_value_raw = measures_raw["m3"] if measures_raw else None
-
-            time_series_buffer_normalized.append(new_value_norm)
-            time_series_buffer_raw.append(new_value_raw)
+            if not ret or img_all is None:
+                print("Error capturing frame from the camera.")
+                break
             
-            #FIFO
-            FIFO_SIZE = 150  # Definição do tamanho da FIFO
-
-            # Inicializa os FIFOs com o tamanho definido
-            if not fifo.measures_fifos:
-                fifo.initialize_fifos(measures_normalized.keys(), FIFO_SIZE)
-
-            fifo.update_fifos(measures_normalized)
-
-            # Obter a matriz no formato (32, 22)
-            #fifo_matrix = fifo.get_fifo_matrix()
-
-            #Matriz para inferencia
+            img_rgb = cv2.cvtColor(img_all, cv2.COLOR_BGR2RGB)
+            results = face_mesh.process(img_rgb)      
             
-            fifo_matrix_inf = fifo.prepare_data_for_inference(45)
+            if results.multi_face_landmarks:
+                landmarks = []
 
-            emotion_class = None
-            prob = None
-            
-            if fifo_matrix_inf is not None:
-                emotion_class, prob = fifo.infer_emotion(model, fifo_matrix_inf)
-            if emotion_class is not None and prob is not None:
-                print(f"Classe Predita: {emotion_class}, Probabilidade: {prob:.2f}")
-            else:
-                print("Inferência falhou: matriz inválida.")
+                for lm in results.multi_face_landmarks[0].landmark:
+                    h, w, _ = img_all.shape
+                    x, y = int(lm.x * w), int(lm.y * h)
+                    landmarks.append((x, y))
 
-            # Plot the time-series   
-            canvas = gf.plot_line_chart(canvas, line_chart_space, positions["line_chart"], list(time_series_buffer_normalized), emotion_class)
-            
-            # Plot the raw time-series in the additional line chart section
-            canvas = gf.plot_line_chart(canvas, line_chart_space, positions["line_chart_raw"], list(time_series_buffer_raw), color=(255, 0, 0))
+                # Normalized and raw points
+                CENTER_NOSE_BASED_POINTS_NORMALIZED = gf.normalization(landmarks, (gf.normal_height_img, gf.normal_width_img))
+                CENTER_NOSE_BASED_POINTS_RAW = landmarks  # Direct raw points without normalization
 
-        if display:
-            cv2.imshow("Canvas", canvas)
+                # Overlay landmarks on the original frame before resizing
+                for (x, y) in landmarks:
+                    cv2.circle(img_all, (x, y), 2, (0, 255, 0), -1)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+                # Resize the camera frame to the designated section
+                camera_frame = cv2.resize(img_all, (camera_space[0], camera_space[1]))
+
+                canvas[positions["camera"][1]:positions["camera"][1] + camera_space[1],
+                    positions["camera"][0]:positions["camera"][0] + camera_space[0]] = camera_frame
+
+                # Plot points in the scatter section
+                canvas = gf.plot_scatter(canvas, scatter_space, positions["scatter"], CENTER_NOSE_BASED_POINTS_NORMALIZED)
+
+                # Calculate measures and update buffers
+                measures_normalized = gf.calculate_measures_distances(CENTER_NOSE_BASED_POINTS_NORMALIZED)
+                measures_raw = gf.calculate_measures_distances(CENTER_NOSE_BASED_POINTS_RAW)
+
+                new_value_norm = measures_normalized["m3"] if measures_normalized else None
+                new_value_raw = measures_raw["m3"] if measures_raw else None
+
+                time_series_buffer_normalized.append(new_value_norm)
+                time_series_buffer_raw.append(new_value_raw)
+                
+                #FIFO
+                FIFO_SIZE = 150  # Definição do tamanho da FIFO
+
+                # Inicializa os FIFOs com o tamanho definido
+                if not fifo.measures_fifos:
+                    fifo.initialize_fifos(measures_normalized.keys(), FIFO_SIZE)
+
+                fifo.update_fifos(measures_normalized)
+
+                # Obter a matriz no formato (32, 22)
+                #fifo_matrix = fifo.get_fifo_matrix()
+
+                #Matriz para inferencia
+                
+                fifo_matrix_inf = fifo.prepare_data_for_inference(45)
+
+                emotion_class = None
+                prob = None
+                
+                if fifo_matrix_inf is not None:
+                    emotion_class, prob = fifo.infer_emotion(model, fifo_matrix_inf)
+                if emotion_class is not None and prob is not None:
+                    print(f"Classe Predita: {emotion_class}, Probabilidade: {prob:.2f}")
+                else:
+                    print("Inferência falhou: matriz inválida.")
+
+                # Plot the time-series   
+                canvas = gf.plot_line_chart(canvas, line_chart_space, positions["line_chart"], list(time_series_buffer_normalized), emotion_class)
+                
+                # Plot the raw time-series in the additional line chart section
+                canvas = gf.plot_line_chart(canvas, line_chart_space, positions["line_chart_raw"], list(time_series_buffer_raw), color=(255, 0, 0))
+
+            if display:
+                cv2.imshow("Canvas", canvas)
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
     cap.release()
     cv2.destroyAllWindows()
     print("Capture ended.")
 
 
-def offline_video_capture_with_canvas(video_path, detector, predictor, display):
+def offline_video_capture_with_canvas(video_path, display):
     """
     Processes a video, captures frames, and displays real-time analytics on a canvas.
     No subtitles are used in this version.
@@ -314,17 +315,12 @@ def main():
     
     args = parser.parse_args()
 
-    # DLIB
-    LANDMARK_FILE = "./shape_predictor_68_face_landmarks.dat"
-    detector = dlib.get_frontal_face_detector()
-    predictor = dlib.shape_predictor(LANDMARK_FILE)
-
     if args.video:
         print(f"Processing video: {args.video}")
-        offline_video_capture_with_canvas(args.video, detector, predictor, args.display)
+        offline_video_capture_with_canvas(args.video, args.display)
     else:
         print("Starting camera capture...")
-        camera_capture_with_canvas(detector, predictor, args.display)
+        camera_capture_with_canvas(args.display)
 
 if __name__ == "__main__":
     main()

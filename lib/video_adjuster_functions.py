@@ -263,16 +263,18 @@ def tuple_to_np(shape_in):
         shape_out[i] = np.asarray(eval(shape_in.iloc[i]))
     return shape_out
 
-FACIAL_LANDMARKS_68_IDXS = OrderedDict([
-    ("mouth", (48, 68)),
-    ("inner_mouth", (60, 68)),
-    ("right_eyebrow", (17, 22)),
-    ("left_eyebrow", (22, 27)),
-    ("right_eye", (36, 42)),
-    ("left_eye", (42, 48)),
-    ("nose", (27, 36)),
-    ("jaw", (0, 17))
+FACIAL_LANDMARKS_468_IDXS = OrderedDict([
+    ("jaw", (234, 454)),  # mandíbula
+    ("right_eyebrow", (46, 65)),  # sobrancelha direita
+    ("left_eyebrow", (276, 295)),  # sobrancelha esquerda
+    ("nose", (6, 9)),  # ponte do nariz
+    ("lower_nose", (195, 5)),  # narinas e ponta
+    ("right_eye", (33, 133)),  # olho direito
+    ("left_eye", (263, 362)),  # olho esquerdo
+    ("mouth_outer", (61, 291)),  # boca externa
+    ("mouth_inner", (78, 308))  # boca interna
 ])
+
 
 def move_to_center_position(shape, point_idx, x_center, y_center):
     selected_point_x, selected_point_y = shape[point_idx]
@@ -287,7 +289,7 @@ def calculate_distance(landmarks, points):
     x2, y2 = landmarks[points[1]]
     return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
-def z_normalization(landmarks, points=[0, 16], divider=100):
+def z_normalization(landmarks, points=[234, 454], divider=100):
     scale_factor = calculate_distance(landmarks, points) / divider
     scaled_landmarks = scale_landmarks(scale_factor, landmarks)
     return scale_factor, scaled_landmarks
@@ -318,8 +320,8 @@ def rotate_landmarks(landmarks, angle, center_point):
     return np.array(rotated_landmarks)
 
 def roll_normalization(landmarks):
-    left_eye_center = calculate_eye_center(landmarks, FACIAL_LANDMARKS_68_IDXS["left_eye"])
-    right_eye_center = calculate_eye_center(landmarks, FACIAL_LANDMARKS_68_IDXS["right_eye"])
+    left_eye_center = calculate_eye_center(landmarks, FACIAL_LANDMARKS_468_IDXS["left_eye"])
+    right_eye_center = calculate_eye_center(landmarks, FACIAL_LANDMARKS_468_IDXS["right_eye"])
     angle = calculate_angle(left_eye_center, right_eye_center)
     desired_rotation = normalize_angle(0 - angle)
     return rotate_landmarks(landmarks, desired_rotation, landmarks[33])
