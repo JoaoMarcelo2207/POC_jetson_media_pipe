@@ -10,6 +10,8 @@ sub_fifo_A = {}
 sub_fifo_B = {}
 sub_fifo_C = {}
 
+last_subfifos_snapshot = {"A": {}, "B": {}, "C": {}}
+
 def initialize_fifos(measure_names, fifo_size):
     """Inicializa uma FIFO separada para cada medida, com tamanho definido externamente."""
     global measures_fifos
@@ -38,7 +40,6 @@ def update_subfifos():
         slice_A = temp[-60:-30]
         sub_fifo_A[measure] = deque(slice_A, maxlen=30)
 
-
 def update_fifos(measures):
     """Atualiza as FIFOs com as novas medidas."""
     for name, value in measures.items():
@@ -46,9 +47,6 @@ def update_fifos(measures):
             measures_fifos[name].append(value)
     
     update_subfifos()
-
-
-last_subfifos_snapshot = {"A": {}, "B": {}, "C": {}}
 
 def check_subfifos_shiftando():
     global last_subfifos_snapshot
@@ -72,7 +70,6 @@ def check_subfifos_shiftando():
     # Atualiza snapshot
     for nome, sub_fifo in [("A", sub_fifo_A), ("B", sub_fifo_B), ("C", sub_fifo_C)]:
         last_subfifos_snapshot[nome] = {k: list(v) for k, v in sub_fifo.items()}
-
 
 def get_fifo_matrix(n=32):
     """
@@ -137,7 +134,6 @@ def prepare_data_for_inference(n=45, n_measures=21):  # Alterado para 45
     normalized_matrix = scaler.fit_transform(matrix)
 
     return normalized_matrix
-
 
 def infer_emotion(model, fifo_matrix):
     """
@@ -217,8 +213,6 @@ def prepare_subfifo_matrix(n=30, n_measures=21, min_values=10):
 
     return normalized_subfifos
 
-
-
 def infer_emotions_for_subfifos(model, fifo_matrix):
     """
     Faz a inferência nas 3 subFIFOs (A, B e C) e retorna os resultados para cada uma.
@@ -243,8 +237,6 @@ def infer_emotions_for_subfifos(model, fifo_matrix):
         results.append((subfifo_names[i], predicted_class, confidence))
 
     return results
-
-
 
 def correlate_with_reference(measure_name, reference_vector):
     """

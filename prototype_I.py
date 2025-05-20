@@ -15,6 +15,7 @@ import video_adjuster_functions as vid_adj_fun, fifo_manager as fifo, graphic_fu
 COLOR_STD = (0, 0, 255)    # Vermelho - padrão
 COLOR_ABOUT = (255, 0, 0)  # Azul - classe "about"
 COLOR_INTERVIEW = (0, 255, 0) # Verde - classe "interview"
+COLOR_HAVE = (255,255,0)
 color_buffer = deque(maxlen=gf.PLOT_SIZE)
 for _ in range(gf.PLOT_SIZE):
     color_buffer.append(COLOR_STD)  # Buffer de cores
@@ -31,7 +32,7 @@ def video_capture_with_canvas(video_path, display):
     """
 
     #paths for the NN model
-    model_path = r"C:\Users\joao.miranda\Documents\POC\POC_jetson_media_pipe\Neural Network [POC]\model_for_3_emotions.keras"
+    model_path = r"C:\Users\joao.miranda\Documents\POC\POC_jetson_media_pipe\Neural Network [POC]\Model_protD.keras"
     model = tf.keras.models.load_model(model_path)
     
     # Abrir vídeo ou webcam
@@ -61,7 +62,7 @@ def video_capture_with_canvas(video_path, display):
 
     # Inicializa o buffer de cores vazio
     color_buffer = deque(maxlen=gf.PLOT_SIZE)
-    
+
     mp_face_mesh = mp.solutions.face_mesh
     with mp_face_mesh.FaceMesh(static_image_mode=False,
                            max_num_faces=1,
@@ -130,20 +131,53 @@ def video_capture_with_canvas(video_path, display):
 
                 #Matriz para inferencia
                 
-                fifo_matrix_inf = fifo.prepare_data_for_inference(45)
+                matrices_subfifos = fifo.prepare_subfifo_matrix()
 
-                emotion_class = None
-                prob = None
+                emotion_classes = []
+                probs = []
                 
-                if fifo_matrix_inf is not None:
-                    emotion_class, prob = fifo.infer_emotion(model, fifo_matrix_inf)
-                if emotion_class is not None and prob is not None:
-                    print(f"Classe Predita: {emotion_class}, Probabilidade: {prob:.2f}")
+                global SEAL_COLOR, SEAL_COUNTER
+                # Verifica se a preparação das subFIFOs foi bem-sucedida
+                if matrices_subfifos is not None:
+                    # Faz a inferência para as 3 subFIFOs
+                    results = fifo.infer_emotions_for_subfifos(model, matrices_subfifos)
+                    # Processa os resultados para cada subFIFO (A, B, C)
+                    for result in results:
+                        subfifo_name, emotion_class, prob = result  # Desempacota corretamente os 3 valores
+                        
+                        # Define a cor com base na classe
+                        new_color = COLOR_STD # cor padrão
+                        if emotion_class == 3:
+                            new_color = COLOR_INTERVIEW
+                            emotion_class = "interview"
+                        elif emotion_class == 0:
+                            emotion_class = "about"
+                            new_color = COLOR_ABOUT
+                        elif emotion_class == 2:
+                            new_color = COLOR_HAVE
+                            emotion_class = "have"
+                        else:
+                            #new_color = COLOR_ALEATORIO
+                            emotion_class = "aleatorio"
+                        # Exibe a inferência
+                        print(f"SubFIFO {subfifo_name} - {emotion_class}, Probabilidade: {prob:.2f}")
+
+                        # Ativa o selamento por WINDOW_SIZE frames
+                        SEAL_COLOR = new_color
+                        SEAL_COUNTER = WINDOW_SIZE
+
+                        emotion_classes.append(emotion_class)
+                        probs.append(prob)
+
+                # Atualiza o buffer de cores dinamicamente
+                if SEAL_COUNTER > 0:
+                    color_buffer.append(SEAL_COLOR)
+                    SEAL_COUNTER -= 1
                 else:
-                    print("Inferência falhou: matriz inválida.")
+                    color_buffer.append(COLOR_STD)
 
                 # Plot the time-series   
-                canvas = gf.plot_line_chart(canvas, line_chart_space, positions["line_chart"], list(time_series_buffer_normalized), emotion_class)
+                canvas = gf.plot_line_chart(canvas, line_chart_space, positions["line_chart"], list(time_series_buffer_normalized), color_buffer=color_buffer)
                 
                 # Plot the raw time-series in the additional line chart section
                 canvas = gf.plot_line_chart(canvas, line_chart_space, positions["line_chart_raw"], list(time_series_buffer_raw), color=(255, 0, 0))
