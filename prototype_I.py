@@ -1,9 +1,10 @@
-from typing import OrderedDict
 import cv2
 import sys, os, argparse
 import tensorflow as tf
 from collections import deque
 import mediapipe as mp
+import time
+import psutil
 
 
 # Import additional functions
@@ -13,13 +14,13 @@ import video_adjuster_functions as vid_adj_fun, fifo_manager as fifo, graphic_fu
 
 # Configurações do gráfico
 COLOR_STD = (0, 0, 255)    # Vermelho - padrão
-COLOR_ABOUT = (255, 0, 0)  # Azul - classe "about"
+COLOR_ABOUT = (255, 255, 0)  # Azul - classe "about"
 COLOR_INTERVIEW = (0, 255, 0) # Verde - classe "interview"
-COLOR_HAVE = (255,255,0)
+COLOR_HAVE = (255,0,0)
 color_buffer = deque(maxlen=gf.PLOT_SIZE)
 for _ in range(gf.PLOT_SIZE):
     color_buffer.append(COLOR_STD)  # Buffer de cores
-WINDOW_SIZE = 15  # Janela de pontos a serem coloridos após a predição
+WINDOW_SIZE = 10  # Janela de pontos a serem coloridos após a predição
 SEAL_COLOR = None
 LAST_COLOR = COLOR_STD
 SEAL_COUNTER = 0
@@ -32,7 +33,7 @@ def video_capture_with_canvas(video_path, display):
     """
 
     #paths for the NN model
-    model_path = r"C:\Users\joao.miranda\Documents\POC\POC_jetson_media_pipe\Neural Network [POC]\Model_protD.keras"
+    model_path = r"C:\Users\joao.miranda\Documents\POC\POC\Neural Network [POC]\protD_gpu.keras"
     model = tf.keras.models.load_model(model_path)
     
     # Abrir vídeo ou webcam
@@ -63,6 +64,9 @@ def video_capture_with_canvas(video_path, display):
     # Inicializa o buffer de cores vazio
     color_buffer = deque(maxlen=gf.PLOT_SIZE)
 
+    pid = os.getpid()
+    process = psutil.Process(pid)
+
     mp_face_mesh = mp.solutions.face_mesh
     with mp_face_mesh.FaceMesh(static_image_mode=False,
                            max_num_faces=1,
@@ -70,7 +74,9 @@ def video_capture_with_canvas(video_path, display):
                            min_detection_confidence=0.5,
                            min_tracking_confidence=0.5) as face_mesh:
         while True:
+            loop_start = time.perf_counter()
             ret, img_all = cap.read()
+            t0 = time.perf_counter()
 
             if (not ret or img_all is None) and video_path is not None:
                 print("End of video or error reading frame.")
@@ -79,8 +85,11 @@ def video_capture_with_canvas(video_path, display):
                 print("Error capturing frame from the camera.")
                 break
 
+            t1 = time.perf_counter()
+
             img_rgb = cv2.cvtColor(img_all, cv2.COLOR_BGR2RGB)
-            results = face_mesh.process(img_rgb)      
+            results = face_mesh.process(img_rgb)
+            t2 = time.perf_counter()
             
             if results.multi_face_landmarks:
                 landmarks = []
@@ -89,10 +98,12 @@ def video_capture_with_canvas(video_path, display):
                     h, w, _ = img_all.shape
                     x, y = int(lm.x * w), int(lm.y * h)
                     landmarks.append((x, y))
+                t3 = time.perf_counter()
 
                 # Normalized and raw points
                 normalized_points = gf.normalization(landmarks, (gf.normal_height_img, gf.normal_width_img))
                 raw_points = landmarks  # Direct raw points without normalization
+                t4 = time.perf_counter()
 
                 # Overlay landmarks on the original frame before resizing
                 for (x, y) in landmarks:
@@ -103,13 +114,17 @@ def video_capture_with_canvas(video_path, display):
 
                 canvas[positions["camera"][1]:positions["camera"][1] + camera_space[1],
                     positions["camera"][0]:positions["camera"][0] + camera_space[0]] = camera_frame
+                t5 = time.perf_counter()
 
                 # Plot points in the scatter section
                 canvas = gf.plot_scatter(canvas, scatter_space, positions["scatter"], normalized_points)
+                t6 = time.perf_counter()
 
                 # Calculate measures and update buffers
                 measures_normalized = gf.calculate_measures_distances(normalized_points)
                 measures_raw = gf.calculate_measures_distances(raw_points)
+                t7 = time.perf_counter()
+
 
                 new_value_norm = measures_normalized["m3"] if measures_normalized else None
                 new_value_raw = measures_raw["m3"] if measures_raw else None
@@ -148,13 +163,13 @@ def video_capture_with_canvas(video_path, display):
                         # Define a cor com base na classe
                         new_color = COLOR_STD # cor padrão
                         if emotion_class == 3:
-                            new_color = COLOR_INTERVIEW
+                            #new_color = COLOR_INTERVIEW
                             emotion_class = "interview"
                         elif emotion_class == 0:
                             emotion_class = "about"
                             new_color = COLOR_ABOUT
                         elif emotion_class == 2:
-                            new_color = COLOR_HAVE
+                            #new_color = COLOR_HAVE
                             emotion_class = "have"
                         else:
                             #new_color = COLOR_ALEATORIO
@@ -169,6 +184,7 @@ def video_capture_with_canvas(video_path, display):
                         emotion_classes.append(emotion_class)
                         probs.append(prob)
 
+                t8 = time.perf_counter()
                 # Atualiza o buffer de cores dinamicamente
                 if SEAL_COUNTER > 0:
                     color_buffer.append(SEAL_COLOR)
@@ -181,6 +197,32 @@ def video_capture_with_canvas(video_path, display):
                 
                 # Plot the raw time-series in the additional line chart section
                 canvas = gf.plot_line_chart(canvas, line_chart_space, positions["line_chart_raw"], list(time_series_buffer_raw), color=(255, 0, 0))
+
+                t9 = time.perf_counter()
+
+                # 10. FPS + uso de RAM
+                loop_end = time.perf_counter()
+                fps = 1.0 / (loop_end - loop_start) if loop_end > loop_start else 0.0
+                ram_usage = process.memory_info().rss / 1024 / 1024  # em MB
+
+                label_text = f"FPS: {fps:.2f} | RAM: {ram_usage:.1f} MB"
+                fps_pos = (positions["camera"][0] + 10, positions["camera"][1] + 20)
+                cv2.putText(canvas, label_text, fps_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+                
+                print(f"""
+                Tempo leitura frame:         {t1 - t0:.4f}s
+                Tempo detecção rosto:        {t2 - t1:.4f}s
+                Tempo landmarks:             {t3 - t2:.4f}s
+                Tempo normalização:          {t4 - t3:.4f}s
+                Tempo desenhar e resize:     {t5 - t4:.4f}s
+                Tempo scatter:               {t6 - t5:.4f}s
+                Tempo medidas:               {t7 - t6:.4f}s
+                Tempo inferência+FIFO:       {t8 - t7:.4f}s
+                Tempo plot gráfico:          {t9 - t8:.4f}s
+                Tempo total do loop:         {loop_end - loop_start:.4f}s
+                FPS estimado:                {fps:.2f}
+                RAM (rss):                   {ram_usage:.1f} MB
+                """)
 
             if display:
                 cv2.imshow("Canvas", canvas)

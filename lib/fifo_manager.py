@@ -10,6 +10,9 @@ sub_fifo_A = {}
 sub_fifo_B = {}
 sub_fifo_C = {}
 
+scaler = MinMaxScaler(feature_range=(-1, 1))
+scaler_fitted = False
+
 last_subfifos_snapshot = {"A": {}, "B": {}, "C": {}}
 
 def initialize_fifos(measure_names, fifo_size):
@@ -40,6 +43,7 @@ def update_subfifos():
         slice_A = temp[-60:-30]
         sub_fifo_A[measure] = deque(slice_A, maxlen=30)
 
+
 def update_fifos(measures):
     """Atualiza as FIFOs com as novas medidas."""
     for name, value in measures.items():
@@ -47,6 +51,77 @@ def update_fifos(measures):
             measures_fifos[name].append(value)
     
     update_subfifos()
+
+def prepare_subfifo_matrix(n=37, n_measures=21, min_values=10):
+    """
+    Prepara matrizes A, B e C com shape (n, n_measures), preenchendo com 0 se faltar valor.
+    Só começa a inferência se cada subFIFO tiver pelo menos `min_values` valores.
+    """
+    global scaler_fitted
+
+    subfifo_configs = [
+        ("A", sub_fifo_A),
+        ("B", sub_fifo_B),
+        ("C", sub_fifo_C),
+    ]
+
+    measure_names = list(measures_fifos.keys())[:n_measures]
+
+    # Criamos uma matriz grande para conter os 3 blocos de subFIFO (cada um com n linhas)
+    big_matrix = np.zeros((n * 3, n_measures), dtype=np.float32)
+
+    for idx, (nome, sub_fifo) in enumerate(subfifo_configs):
+        # Verifica se cada medida tem dados suficientes
+        for m in measure_names:
+            if len(sub_fifo.get(m, [])) < min_values:
+                print(f"SubFIFO {nome} ainda com poucos dados: '{m}' tem {len(sub_fifo.get(m, []))}/{min_values} valores.")
+                return None
+
+        # Monta a matriz com preenchimento de zeros se faltar valor
+        # Preenche o segmento da matriz correspondente a esse subFIFO
+        for i in range(-n, 0):
+            for j, m in enumerate(measure_names):
+                valores = sub_fifo[m]
+                valor = valores[i] if len(valores) >= abs(i) else 0.0
+                big_matrix[i + n * idx, j] = valor
+    
+    if not scaler_fitted:
+        scaler.fit(big_matrix)
+        scaler_fitted = True
+
+    normalized = scaler.transform(big_matrix)
+
+    # Dividimos em 3 blocos e retornamos
+    matA = normalized[0:n]
+    matB = normalized[n:2*n]
+    matC = normalized[2*n:3*n]
+
+    return [matA.astype(np.float32), matB.astype(np.float32), matC.astype(np.float32)]
+
+def infer_emotions_for_subfifos(model, fifo_matrix):
+    """
+    Faz a inferência nas 3 subFIFOs (A, B e C) e retorna os resultados para cada uma.
+    
+    Parâmetros:
+        model (tf.keras.Model): Modelo carregado.
+        fifo_matrix: Matriz das subFIFOs (A, B, C).
+    
+    Retorna:
+        results: Lista de tuplas (nome_subfifo, classe_predita, confiança) para cada subFIFO (A, B e C).
+    """
+    results = []
+
+    subfifo_names = ['A', 'B', 'C']  # Nomes das subFIFOs para exibição
+    batch = np.stack(fifo_matrix)  # shape (3, 30, 21)
+    predictions = model.predict(batch, batch_size=3, verbose=0)
+
+    for i, pred in enumerate(predictions):
+        predicted_class = np.argmax(pred)
+        confidence = np.max(pred)
+        results.append((subfifo_names[i], predicted_class, confidence))
+
+    return results
+
 
 def check_subfifos_shiftando():
     global last_subfifos_snapshot
@@ -127,7 +202,7 @@ def prepare_data_for_inference(n=45, n_measures=21):  # Alterado para 45
         data.append(frame_values)   
 
     # Transformar em um array NumPy de shape (45, 22)
-    matrix = np.array(data)
+    matrix = np.array(data, dtype=np.float32)
 
     # Aplicar MinMaxScaler para normalizar entre [-1, 1]
     scaler = MinMaxScaler(feature_range=(-1, 1))
@@ -170,73 +245,6 @@ def infer_emotion(model, fifo_matrix):
     ''' 
 
     return predicted_class, confidence
-
-def prepare_subfifo_matrix(n=30, n_measures=21, min_values=10):
-    """
-    Prepara matrizes A, B e C com shape (n, n_measures), preenchendo com 0 se faltar valor.
-    Só começa a inferência se cada subFIFO tiver pelo menos `min_values` valores.
-    """
-    subfifo_configs = [
-        ("A", sub_fifo_A),
-        ("B", sub_fifo_B),
-        ("C", sub_fifo_C),
-    ]
-
-    measure_names = list(measures_fifos.keys())[:n_measures]
-    normalized_subfifos = []
-
-    for nome, sub_fifo in subfifo_configs:
-        # Verifica se tem valores suficientes para iniciar
-        for m in measure_names:
-            if len(sub_fifo.get(m, [])) < min_values:
-                print(f"SubFIFO {nome} ainda com poucos dados: '{m}' tem {len(sub_fifo.get(m, []))}/{min_values} valores.")
-                return None
-
-        # Monta a matriz com preenchimento de zeros se faltar valor
-        data = []
-        for i in range(-n, 0):
-            row = []
-            for m in measure_names:
-                valores = sub_fifo[m]
-                if len(valores) >= abs(i):
-                    row.append(valores[i])
-                else:
-                    row.append(0.0)  # Preenche com zero
-            data.append(row)
-
-        matrix = np.array(data)
-
-        # Normaliza
-        scaler = MinMaxScaler(feature_range=(-1, 1))
-        normalized = scaler.fit_transform(matrix)
-        normalized_subfifos.append(normalized)
-
-    return normalized_subfifos
-
-def infer_emotions_for_subfifos(model, fifo_matrix):
-    """
-    Faz a inferência nas 3 subFIFOs (A, B e C) e retorna os resultados para cada uma.
-    
-    Parâmetros:
-        model (tf.keras.Model): Modelo carregado.
-        fifo_matrix: Matriz das subFIFOs (A, B, C).
-    
-    Retorna:
-        results: Lista de tuplas (nome_subfifo, classe_predita, confiança) para cada subFIFO (A, B e C).
-    """
-    results = []
-
-    subfifo_names = ['A', 'B', 'C']  # Nomes das subFIFOs para exibição
-    for i, matrix in enumerate(fifo_matrix):
-        # Realiza a inferência diretamente com o modelo
-        matrix = np.expand_dims(matrix, axis=0)  # Agora terá a forma (1, 30, 21)
-        prediction = model.predict(matrix)
-        predicted_class = np.argmax(prediction) # Escolhe a classe com maior probabilidade
-        confidence = np.max(prediction)  # Pega a confiança máxima
-
-        results.append((subfifo_names[i], predicted_class, confidence))
-
-    return results
 
 def correlate_with_reference(measure_name, reference_vector):
     """
