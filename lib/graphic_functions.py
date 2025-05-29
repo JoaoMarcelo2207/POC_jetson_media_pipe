@@ -114,83 +114,87 @@ def plot_line_chart(canvas, line_chart_space, line_chart_position, data, color_b
 def calculate_measures_distances(landmarks):
     def euclidean_distance(p1, p2):
         """Calculates the Euclidean distance between two points."""
-        return np.linalg.norm(p2 - p1)
+        return np.sqrt((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2)
+    
+    def mean_point(points):
+        return np.mean(points, axis=0)
     
     # Internal mouth 1 vertical 63 and 67
-    m1 = euclidean_distance(landmarks[63 - 1], landmarks[67 - 1])
+    m1 = euclidean_distance(landmarks[13], landmarks[14])
 
     # External mouth horizontal 49 and 55
-    m3 = euclidean_distance(landmarks[49 - 1], landmarks[55 - 1])
+    m3 = euclidean_distance(landmarks[61], landmarks[291])
 
     # Upper lips 1 vertical 52 and 63
-    m4 = euclidean_distance(landmarks[52-1], landmarks[63-1])
+    m4 = euclidean_distance(landmarks[0], landmarks[13])
 
-    # Lower lips 1 vertical 67 and 58
-    m5 = euclidean_distance(landmarks[67-1],  landmarks[58-1])
+    # Lower lips vertical (67↔58 → mp 14↔17)
+    m5 = euclidean_distance(landmarks[14], landmarks[17])
 
-    # Upper lips horizontal 62 and 64
-    m6 = euclidean_distance(landmarks[62-1],  landmarks[64-1])
+    # Upper lips horizontal (62↔64 → mp 82↔312)
+    m6 = euclidean_distance(landmarks[82], landmarks[312])
 
-    # Lower lips horizontal 59 and 57
-    m7 = euclidean_distance(landmarks[59-1],  landmarks[57-1])
+    # Lower lips horizontal (59↔57 → mp 84↔314)
+    m7 = euclidean_distance(landmarks[84], landmarks[314])
 
-    # Upper lip and nose 34 and 52
-    m8 = euclidean_distance(landmarks[34-1],  landmarks[52-1])
+    # Upper lip ↔ nose (34↔52 → mp 2↔0)
+    m8 = euclidean_distance(landmarks[2], landmarks[0])
 
-    # Lower lip and nose 34 and 58
-    m9 = euclidean_distance(landmarks[34-1], landmarks[58-1])
+    # Lower lip ↔ nose (34↔58 → mp 2↔17)
+    m9 = euclidean_distance(landmarks[2], landmarks[17])
 
-    # Internal lower lip and nose 34 and 67
-    m10 = euclidean_distance(landmarks[34-1], landmarks[67-1])
+    # Internal lower lip ↔ nose (34↔67 → mp 2↔14)
+    m10 = euclidean_distance(landmarks[2], landmarks[14])
 
-    # Mouth: Draw average between 63 and 67 and measure vertical parallel with 34
-    mean_m11 = np.mean(landmarks[[63-1,67-1]], axis=0)
-    m11 = euclidean_distance(mean_m11, landmarks[34-1])
+    # Mouth mean (63,67) ↔ nose (34 → mp mean(13,14)↔2)
+    mean_m11 = mean_point([landmarks[13], landmarks[14]])
+    m11 = euclidean_distance(mean_m11, landmarks[2])
 
-    # Mouth-Nose: Measure vertical parallel between 34 and 49
-    m12 = euclidean_distance(landmarks[34-1], landmarks[49-1])
+    # Mouth‑Nose vertical left (34↔49 → mp 2↔61)
+    m12 = euclidean_distance(landmarks[2], landmarks[61])
 
-    # Mouth-Nose: Measure right vertical parallel between 34 and 55
-    m13 = euclidean_distance(landmarks[34-1], landmarks[55-1])
+    # Mouth‑Nose vertical right (34↔55 → mp 2↔291)
+    m13 = euclidean_distance(landmarks[2], landmarks[291])
 
-    mean_m14_m15_m16_m17 = np.mean(landmarks[[49-1, 55-1]], axis=0)
-    
-    # Mouth: Draw average between 49 and 55 and measure vertical parallel with 52
-    m14 = euclidean_distance(mean_m14_m15_m16_m17, landmarks[52-1])
+    # Mouth mean (49,55) ↔ upper lip (52 → mp mean(61,291)↔0)
+    mean_m14_m15_m16_m17 = mean_point([landmarks[61], landmarks[291]])
+    m14 = euclidean_distance(mean_m14_m15_m16_m17, landmarks[0])
 
-    # Mouth: Draw average between 49 and 55 and measure vertical parallel with 58
-    m15 = euclidean_distance(mean_m14_m15_m16_m17, landmarks[58-1])
-    
-    # Mouth: Draw average between 49 and 55 and measure vertical parallel with 67
-    m16 = euclidean_distance(mean_m14_m15_m16_m17, landmarks[68-1])
-    
-    # Mouth: Draw average between 49 and 55 and measure vertical parallel with 63
-    m17 = euclidean_distance(mean_m14_m15_m16_m17, landmarks[64-1])
+    # Mouth mean (49,55) ↔ lower lip (58 → mp mean(61,291)↔17)
+    m15 = euclidean_distance(mean_m14_m15_m16_m17, landmarks[17])
 
-    # Left eye vertical 38 and 42
-    e1 = euclidean_distance(landmarks[38-1], landmarks[42-1])
+    # Mouth mean (49,55) ↔ internal lower lip (67 → mp mean(61,291)↔14)
+    m16 = euclidean_distance(mean_m14_m15_m16_m17, landmarks[14])
 
-    # Right eye vertical 44 and 48
-    e2 = euclidean_distance(landmarks[44-1], landmarks[48-1])
+    # Mouth mean (49,55) ↔ internal mouth top (63 → mp mean(61,291)↔13)
+    m17 = euclidean_distance(mean_m14_m15_m16_m17, landmarks[13])
 
-    # Eye: Vertical distance right eye 2 with average between points 45-44 and 47-48
-    mean_e3_1 = np.mean(landmarks[[45-1, 44-1]], axis=0)
-    mean_e3_2 = np.mean(landmarks[[47-1, 48-1]], axis=0)
+    # Left eye vertical (38↔42 → mp 160↔144)
+    e1 = euclidean_distance(landmarks[160], landmarks[144])
+
+    # Right eye vertical (44↔48 → mp 385↔380)
+    e2 = euclidean_distance(landmarks[385], landmarks[380])
+
+    # Eye vertical between (45,44)↔(47,48) → mp mean(387,385)↔mean(373,380)
+    mean_e3_1 = mean_point([landmarks[387], landmarks[385]])
+    mean_e3_2 = mean_point([landmarks[373], landmarks[380]])
     e3 = euclidean_distance(mean_e3_1, mean_e3_2)
 
-    # Eyebrow-Nose: Measure left vertical parallel between 28 and 20
-    b1 = euclidean_distance(landmarks[28-1], landmarks[20-1])
+    # Eyebrow‑Nose left (28↔20 → mp 168↔105)
+    b1 = euclidean_distance(landmarks[168], landmarks[105])
 
-    # Eyebrow-Nose: Measure right vertical parallel between 28 and 25
-    b2 = euclidean_distance(landmarks[28-1], landmarks[25-1]) 
+    # Eyebrow‑Nose right (28↔25 → mp 168↔334)
+    b2 = euclidean_distance(landmarks[168], landmarks[334])
 
-    # Eyebrows horizontal 22 and 23
-    b3 = euclidean_distance(landmarks[22-1], landmarks[23-1])
+    # Eyebrows horizontal (22↔23 → mp 107↔336)
+    b3 = euclidean_distance(landmarks[107], landmarks[336])
 
     # Return only the required measures
     return {"m1": m1, 'm3': m3, 'm4': m4, 'm5': m5, 'm6': m6, 'm7': m7, 'm8': m8, 'm9': m9,
              'm10': m10, 'm11': m11, 'm12': m12, 'm13': m13, 'm14': m14, 'm15': m15, 'm16': m16,
                'm17': m17, 'e1': e1, 'e2': e2, 'e3': e3, 'b1': b1, 'b2': b2, 'b3': b3}
+
+
 
 
 def normalization(landmarks, shape_normal_img):
