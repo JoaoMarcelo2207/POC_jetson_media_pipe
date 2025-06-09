@@ -10,6 +10,7 @@ import psutil
 # Import additional functions
 sys.path.append(os.path.join("lib"))
 import video_adjuster_functions as vid_adj_fun, fifo_manager as fifo, graphic_functions as gf
+sys.path.append(os.path.join("threads"))
 from camera_thread import CameraStream
 from landmark_thread import LandmarkProcessor
 
@@ -97,6 +98,8 @@ def video_capture_with_canvas(video_path, display):
         landmark_thread.set_frame(img_all)
         # Pega o resultado da thread (da iteração anterior)
         landmarks = landmark_thread.get_landmarks()
+        if landmarks is None:
+            continue
         t2 = time.perf_counter()
 
         if landmarks is not None:
