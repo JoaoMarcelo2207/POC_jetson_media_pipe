@@ -12,7 +12,6 @@ from queue import Queue, Empty
 sys.path.append(os.path.join("lib"))
 import video_adjuster_functions as vid_adj_fun, fifo_manager as fifo, graphic_functions as gf
 sys.path.append(os.path.join("lib", "threads"))
-from camera_thread import CameraStream
 from landmark_thread import LandmarkProcessor
 
 
@@ -43,15 +42,15 @@ def video_capture_with_canvas(video_path, display):
     # Abrir vídeo ou webcam
     if video_path:
         print(f"Processing video file: {video_path}")
-        cap = CameraStream(src=video_path).start()
-        fps_cv2 = cap.cap.get(cv2.CAP_PROP_FPS)
+        cap = cv2.VideoCapture(video_path)
+        fps_cv2 = cap.get(cv2.CAP_PROP_FPS)
         print(f"FPS original do vídeo: {fps_cv2:.2f}")
         frame_duration = 1.0 / fps_cv2
     else:
         print("Capturing from webcam...")
-        cap = CameraStream(0).start()
+        cap = cv2.VideoCapture(0)
 
-    if not cap.is_Opened():
+    if not cap.isOpened():
         print("Error: Could not open video source.")
         return
     
@@ -250,7 +249,7 @@ def video_capture_with_canvas(video_path, display):
             break
     
     landmark_thread.stop()
-    cap.stop()
+    cap.release()
     cv2.destroyAllWindows()
     print("Capture ended.")
 
