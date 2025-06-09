@@ -207,18 +207,18 @@ def video_capture_with_canvas(video_path, display):
                 t9 = time.perf_counter()
 
                 # 10. FPS + uso de RAM
+                loop_end = time.perf_counter() # Finaliza o tempo de loop
                 ram_usage = process.memory_info().rss / 1024 / 1024  # em MB
-                # Sincronizar a execução com o tempo real do vídeo (reprodução normalizada)
-                # Finaliza o tempo de loop
-                loop_end = time.perf_counter()
-                loop_duration = loop_end - loop_start
+                if video_path: # Sincronizar a execução com o tempo real do vídeo (reprodução normalizada)
+                    loop_duration = loop_end - loop_start
+                    # Espera o tempo necessário para manter frame_duration (ex: 1/30s = 0.033s)
+                    sleep_time = max(0, frame_duration - loop_duration)
+                    time.sleep(sleep_time)
+                    # Agora mede o FPS após o sleep
+                    fps = 1.0 / (loop_duration + sleep_time) if (loop_duration + sleep_time) > 0 else 0.0
+                else:
+                    fps = 1.0 / (loop_end - loop_start) if loop_end > loop_start else 0.0
 
-                # Espera o tempo necessário para manter frame_duration (ex: 1/30s = 0.033s)
-                sleep_time = max(0, frame_duration - loop_duration)
-                time.sleep(sleep_time)
-                # Agora mede o FPS após o sleep
-                fps = 1.0 / (loop_duration + sleep_time) if (loop_duration + sleep_time) > 0 else 0.0
-                
                 label_text = f"FPS: {fps:.2f} | RAM: {ram_usage:.1f} MB"
                 fps_pos = (positions["camera"][0] + 10, positions["camera"][1] + 20)
                 cv2.putText(canvas, label_text, fps_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
