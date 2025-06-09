@@ -33,16 +33,21 @@ def video_capture_with_canvas(video_path, display):
     """
 
     #paths for the NN model
-    model_path = r"C:\Users\joao.miranda\Documents\POC\POC\Neural Network [POC]\protD_gpu.keras"
+    model_path = r"C:\Users\joao.miranda\Documents\POC\POC_jetson_media_pipe\Neural Network [POC]\protD_tf_218_cpu.keras"
     model = tf.keras.models.load_model(model_path)
     
     # Abrir vídeo ou webcam
     if video_path:
         print(f"Processing video file: {video_path}")
         cap = cv2.VideoCapture(video_path)
+        fps_cv2 = cap.get(cv2.CAP_PROP_FPS)
+        print(f"FPS original do vídeo: {fps_cv2:.2f}")
+        frame_duration = 1.0 / fps_cv2
     else:
         print("Capturing from webcam...")
         cap = cv2.VideoCapture(0)
+        fps_cv2 = cap.get(cv2.CAP_PROP_FPS)
+        frame_duration = 1.0 / fps_cv2
 
     if not cap.isOpened():
         print("Error: Could not open video source.")
@@ -201,8 +206,19 @@ def video_capture_with_canvas(video_path, display):
                 t9 = time.perf_counter()
 
                 # 10. FPS + uso de RAM
+                # Finaliza o tempo de loop
                 loop_end = time.perf_counter()
-                fps = 1.0 / (loop_end - loop_start) if loop_end > loop_start else 0.0
+                
+                if video_path:
+                    loop_duration = loop_end - loop_start
+                    # Espera o tempo necessário para manter frame_duration (ex: 1/30s = 0.033s)
+                    sleep_time = max(0, frame_duration - loop_duration)
+                    time.sleep(sleep_time)
+                    # Agora mede o FPS após o sleep
+                    fps = 1.0 / (loop_duration + sleep_time) if (loop_duration + sleep_time) > 0 else 0.0
+                else:
+                    fps = 1.0 / (loop_end - loop_start) if loop_end > loop_start else 0.0
+
                 ram_usage = process.memory_info().rss / 1024 / 1024  # em MB
 
                 label_text = f"FPS: {fps:.2f} | RAM: {ram_usage:.1f} MB"
