@@ -1,13 +1,10 @@
-from queue import Queue, Empty
 import threading
 import cv2
 import mediapipe as mp
 
 class LandmarkProcessor(threading.Thread):
-    def __init__(self, input_queue: Queue, output_queue: Queue):
+    def __init__(self):
         super().__init__()
-        self.input_queue = input_queue
-        self.output_queue = output_queue
         self.running = True
         self.input_frame = None
         self.lock = threading.Lock()
@@ -24,12 +21,22 @@ class LandmarkProcessor(threading.Thread):
             min_tracking_confidence=0.5
         )
 
+    def set_frame(self, frame):
+        with self.lock:
+            self.input_frame = frame.copy()
+        self.new_frame_event.set()
+
+    def get_landmarks(self):
+        with self.lock:
+            return self.landmarks
+
     def run(self):
         while self.running:
-            try:
-                frame = self.input_queue.get(timeout=0.1)  # espera por novo frame
-            except Empty:
-                continue
+            self.new_frame_event.wait()
+            self.new_frame_event.clear()
+
+            with self.lock:
+                frame = self.input_frame.copy() if self.input_frame is not None else None
 
             if frame is None:
                 continue
@@ -39,10 +46,17 @@ class LandmarkProcessor(threading.Thread):
 
             if results.multi_face_landmarks:
                 h, w, _ = frame.shape
-                landmarks = [(int(lm.x * w), int(lm.y * h)) for lm in results.multi_face_landmarks[0].landmark]
-                self.output_queue.put(landmarks)
+                landmarks = []
+                for lm in results.multi_face_landmarks[0].landmark:
+                    x, y = int(lm.x * w), int(lm.y * h)
+                    landmarks.append((x, y))
+
+                with self.lock:
+                    self.landmarks = landmarks
             else:
-                self.output_queue.put(None)
- 
+                with self.lock:
+                    self.landmarks = None
+
     def stop(self):
         self.running = False
+        self.new_frame_event.set()

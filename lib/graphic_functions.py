@@ -144,7 +144,7 @@ def calculate_measures_distances(landmarks):
     m10 = euclidean_distance(landmarks[2], landmarks[14])
 
     # Mouth mean (63,67) ↔ nose (34 → mp mean(13,14)↔2)
-    mean_m11 = np.mean(landmarks[[13,14]], axis=0)
+    mean_m11 = np.mean([landmarks[13], landmarks[14]], axis=0)
     m11 = euclidean_distance(mean_m11, landmarks[2])
 
     # Mouth‑Nose vertical left (34↔49 → mp 2↔61)
@@ -154,7 +154,7 @@ def calculate_measures_distances(landmarks):
     m13 = euclidean_distance(landmarks[2], landmarks[291])
 
     # Mouth mean (49,55) ↔ upper lip (52 → mp mean(61,291)↔0)
-    mean_m14_m15_m16_m17 = np.mean(landmarks[[61,291]],axis=0)
+    mean_m14_m15_m16_m17 = np.mean([landmarks[61], landmarks[291]],axis=0)
     m14 = euclidean_distance(mean_m14_m15_m16_m17, landmarks[0])
 
     # Mouth mean (49,55) ↔ lower lip (58 → mp mean(61,291)↔17)
@@ -173,8 +173,8 @@ def calculate_measures_distances(landmarks):
     e2 = euclidean_distance(landmarks[385], landmarks[380])
 
     # Eye vertical between (45,44)↔(47,48) → mp mean(387,385)↔mean(373,380)
-    mean_e3_1 = np.mean(landmarks[[387,385]],axis=0)
-    mean_e3_2 = np.mean(landmarks[[373,380]],axis=0)
+    mean_e3_1 = np.mean([landmarks[387], landmarks[385]],axis=0)
+    mean_e3_2 = np.mean([landmarks[373], landmarks[380]],axis=0)
     e3 = euclidean_distance(mean_e3_1, mean_e3_2)
 
     # Eyebrow‑Nose left (28↔20 → mp 168↔105)

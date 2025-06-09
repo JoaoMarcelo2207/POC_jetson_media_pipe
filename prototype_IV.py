@@ -11,7 +11,7 @@ from queue import Queue, Empty
 # Import additional functions
 sys.path.append(os.path.join("lib"))
 import video_adjuster_functions as vid_adj_fun, fifo_manager as fifo, graphic_functions as gf
-sys.path.append(os.path.join("threads"))
+sys.path.append(os.path.join("lib", "threads"))
 from camera_thread import CameraStream
 from landmark_thread import LandmarkProcessor
 
@@ -103,23 +103,11 @@ def video_capture_with_canvas(video_path, display):
             break
         t1 = time.perf_counter()
         
-
-       # Envia frame para a thread (descarta o anterior se necessário)
-        if not frame_queue.full():
-            frame_queue.put(img_all)
-        else:
-            try:
-                frame_queue.get_nowait()
-            except Empty:
-                pass
-            frame_queue.put(img_all)
-
-        # Tenta pegar landmarks prontos da thread
-        try:
-            landmarks = landmark_queue.get_nowait()
-        except Empty:
-            landmarks = None
-
+        # Envia o frame para a thread processar
+        landmark_thread.set_frame(img_all)
+        # Pega o resultado da thread (da iteração anterior)
+        landmarks = landmark_thread.get_landmarks()
+        
         if landmarks is None:
             continue
         t2 = time.perf_counter()
