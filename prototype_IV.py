@@ -37,12 +37,8 @@ def video_capture_with_canvas(video_path, display):
     """
 
     #paths for the NN model
-    model_path = r"C:\Users\joao.miranda\Documents\POC\POC\Neural Network [POC]\protD_gpu.keras"
+    model_path = r"C:\Users\joao.miranda\Documents\POC\POC_jetson_media_pipe\Neural Network [POC]\protD_tf_218_cpu.keras"
     model = tf.keras.models.load_model(model_path)
-    # Defina FPS alvo se estiver processando um vídeo
-    USE_SLEEP = video_path is not None
-    TARGET_FPS = 30
-    FRAME_DURATION = 1.0 / TARGET_FPS
     
     # Abrir vídeo ou webcam
     if video_path:
@@ -82,12 +78,7 @@ def video_capture_with_canvas(video_path, display):
                                    min_detection_confidence=0.5,
                                    min_tracking_confidence=0.5)
     
-    # Fila para enviar frames para a thread
-    frame_queue = Queue(maxsize=1)
-    # Fila para receber os landmarks da thread
-    landmark_queue = Queue(maxsize=1)
-
-    landmark_thread = LandmarkProcessor(frame_queue, landmark_queue)
+    landmark_thread = LandmarkProcessor()
     landmark_thread.start()
     
     while True:
@@ -107,7 +98,7 @@ def video_capture_with_canvas(video_path, display):
         landmark_thread.set_frame(img_all)
         # Pega o resultado da thread (da iteração anterior)
         landmarks = landmark_thread.get_landmarks()
-        
+
         if landmarks is None:
             continue
         t2 = time.perf_counter()
@@ -217,12 +208,6 @@ def video_capture_with_canvas(video_path, display):
 
             # 10. FPS + uso de RAM
             loop_end = time.perf_counter()
-            # Se for vídeo gravado, espera o tempo necessário para simular tempo real
-            if USE_SLEEP:
-                elapsed = loop_end - loop_start
-                time_to_sleep = FRAME_DURATION - elapsed
-                if time_to_sleep > 0:
-                    time.sleep(time_to_sleep)   
             fps = 1.0 / (loop_end - loop_start) if loop_end > loop_start else 0.0
             ram_usage = process.memory_info().rss / 1024 / 1024  # em MB
 

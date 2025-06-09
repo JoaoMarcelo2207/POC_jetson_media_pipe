@@ -10,6 +10,7 @@ import psutil
 # Import additional functions
 sys.path.append(os.path.join("lib"))
 import video_adjuster_functions as vid_adj_fun, fifo_manager as fifo, graphic_functions as gf
+sys.path.append(os.path.join("lib", "threads"))
 from camera_thread import CameraStream
 from landmark_thread import LandmarkProcessor
 
@@ -35,7 +36,7 @@ def video_capture_with_canvas(video_path, display):
     """
 
     #paths for the NN model
-    model_path = r"C:\Users\joao.miranda\Documents\POC\POC\Neural Network [POC]\protD_gpu.keras"
+    model_path = r"C:\Users\joao.miranda\Documents\POC\POC_jetson_media_pipe\Neural Network [POC]\protD_tf_218_cpu.keras"
     model = tf.keras.models.load_model(model_path)
     
     # Abrir vídeo ou webcam
