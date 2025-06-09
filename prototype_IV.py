@@ -44,6 +44,9 @@ def video_capture_with_canvas(video_path, display):
     if video_path:
         print(f"Processing video file: {video_path}")
         cap = CameraStream(src=video_path).start()
+        fps_cv2 = cap.cap.get(cv2.CAP_PROP_FPS)
+        print(f"FPS original do vídeo: {fps_cv2:.2f}")
+        frame_duration = 1.0 / fps_cv2
     else:
         print("Capturing from webcam...")
         cap = CameraStream(0).start()
@@ -208,8 +211,16 @@ def video_capture_with_canvas(video_path, display):
 
             # 10. FPS + uso de RAM
             loop_end = time.perf_counter()
-            fps = 1.0 / (loop_end - loop_start) if loop_end > loop_start else 0.0
             ram_usage = process.memory_info().rss / 1024 / 1024  # em MB
+            if video_path: # Sincronizar a execução com o tempo real do vídeo (reprodução normalizada)
+                    loop_duration = loop_end - loop_start
+                    # Espera o tempo necessário para manter frame_duration (ex: 1/30s = 0.033s)
+                    sleep_time = max(0, frame_duration - loop_duration)
+                    time.sleep(sleep_time)
+                    # Agora mede o FPS após o sleep
+                    fps = 1.0 / (loop_duration + sleep_time) if (loop_duration + sleep_time) > 0 else 0.0
+            else:
+                fps = 1.0 / (loop_end - loop_start) if loop_end > loop_start else 0.0
 
             
         
