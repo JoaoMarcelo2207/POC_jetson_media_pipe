@@ -33,13 +33,16 @@ def video_capture_with_canvas(video_path, display):
     """
 
     #paths for the NN model
-    model_path = r"C:\Users\joao.miranda\Documents\POC\POC\Neural Network [POC]\protD_gpu.keras"
+    model_path = r"C:\Users\joao.miranda\Documents\POC\POC_jetson_media_pipe\Neural Network [POC]\protD_tf_218_cpu.keras"
     model = tf.keras.models.load_model(model_path)
     
     # Abrir vídeo ou webcam
     if video_path:
         print(f"Processing video file: {video_path}")
         cap = cv2.VideoCapture(video_path)
+        fps_cv2 = cap.get(cv2.CAP_PROP_FPS)
+        print(f"FPS original do vídeo: {fps_cv2:.2f}")
+        frame_duration = 1.0 / fps_cv2
     else:
         print("Capturing from webcam...")
         cap = cv2.VideoCapture(0)
@@ -73,6 +76,9 @@ def video_capture_with_canvas(video_path, display):
                            refine_landmarks=True,
                            min_detection_confidence=0.5,
                            min_tracking_confidence=0.5) as face_mesh:
+        
+        start_time = time.time()
+        frame_idx = 0
         while True:
             loop_start = time.perf_counter()
             ret, img_all = cap.read()
@@ -201,13 +207,23 @@ def video_capture_with_canvas(video_path, display):
                 t9 = time.perf_counter()
 
                 # 10. FPS + uso de RAM
-                loop_end = time.perf_counter()
-                fps = 1.0 / (loop_end - loop_start) if loop_end > loop_start else 0.0
                 ram_usage = process.memory_info().rss / 1024 / 1024  # em MB
+                # Sincronizar a execução com o tempo real do vídeo (reprodução normalizada)
+                # Finaliza o tempo de loop
+                loop_end = time.perf_counter()
+                loop_duration = loop_end - loop_start
 
+                # Espera o tempo necessário para manter frame_duration (ex: 1/30s = 0.033s)
+                sleep_time = max(0, frame_duration - loop_duration)
+                time.sleep(sleep_time)
+                # Agora mede o FPS após o sleep
+                fps = 1.0 / (loop_duration + sleep_time) if (loop_duration + sleep_time) > 0 else 0.0
+                
                 label_text = f"FPS: {fps:.2f} | RAM: {ram_usage:.1f} MB"
                 fps_pos = (positions["camera"][0] + 10, positions["camera"][1] + 20)
                 cv2.putText(canvas, label_text, fps_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+
+
                 
                 print(f"""
                 Tempo leitura frame:         {t1 - t0:.4f}s
@@ -221,6 +237,7 @@ def video_capture_with_canvas(video_path, display):
                 Tempo plot gráfico:          {t9 - t8:.4f}s
                 Tempo total do loop:         {loop_end - loop_start:.4f}s
                 FPS estimado:                {fps:.2f}
+                FPS OPENCV:                  {fps_cv2:.2f}
                 RAM (rss):                   {ram_usage:.1f} MB
                 """)
 
