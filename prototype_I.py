@@ -32,10 +32,6 @@ def video_capture_with_canvas(video_path, display):
     Overlays facial landmarks correctly aligned to the face.
     """
 
-    #paths for the NN model
-    model_path = r"C:\Users\joao.miranda\Documents\POC\POC_jetson_media_pipe\Neural Network [POC]\protD_tf_218_cpu.keras"
-    model = tf.keras.models.load_model(model_path)
-    
     # Abrir vídeo ou webcam
     if video_path:
         print(f"Processing video file: {video_path}")
@@ -161,7 +157,7 @@ def video_capture_with_canvas(video_path, display):
                 # Verifica se a preparação das subFIFOs foi bem-sucedida
                 if matrices_subfifos is not None:
                     # Faz a inferência para as 3 subFIFOs
-                    results = fifo.infer_emotions_for_subfifos(model, matrices_subfifos)
+                    results = fifo.infer_emotions_for_subfifos(matrices_subfifos)
                     # Processa os resultados para cada subFIFO (A, B, C)
                     for result in results:
                         subfifo_name, emotion_class, prob = result  # Desempacota corretamente os 3 valores

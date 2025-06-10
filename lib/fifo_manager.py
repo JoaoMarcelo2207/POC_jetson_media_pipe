@@ -2,6 +2,7 @@ import numpy as np
 import tensorflow as tf 
 from collections import deque
 from sklearn.preprocessing import MinMaxScaler
+import onnxruntime as ort
 
 measures_fifos = {}  # Dicionário global para armazenar as FIFOs
 
@@ -14,6 +15,11 @@ scaler = MinMaxScaler(feature_range=(-1, 1))
 scaler_fitted = False
 
 last_subfifos_snapshot = {"A": {}, "B": {}, "C": {}}
+
+#Carregar Modelo
+model_path = "/home/joaomarcelohpc/Documents/POC_jetson_media_pipe/Neural Network [POC]/transformer_model.onnx"
+session = ort.InferenceSession(model_path, providers=["TensorrtExecutionProvider", "CUDAExecutionProvider"])
+input_name = session.get_inputs()[0].name
 
 def initialize_fifos(measure_names, fifo_size):
     """Inicializa uma FIFO separada para cada medida, com tamanho definido externamente."""
@@ -98,7 +104,7 @@ def prepare_subfifo_matrix(n=37, n_measures=21, min_values=10):
 
     return [matA.astype(np.float32), matB.astype(np.float32), matC.astype(np.float32)]
 
-def infer_emotions_for_subfifos(model, fifo_matrix):
+def infer_emotions_for_subfifos(fifo_matrix):
     """
     Faz a inferência nas 3 subFIFOs (A, B e C) e retorna os resultados para cada uma.
     
@@ -113,7 +119,7 @@ def infer_emotions_for_subfifos(model, fifo_matrix):
 
     subfifo_names = ['A', 'B', 'C']  # Nomes das subFIFOs para exibição
     batch = np.stack(fifo_matrix)  # shape (3, 30, 21)
-    predictions = model.predict(batch, batch_size=3, verbose=0)
+    predictions = session.run(None, {input_name: batch})[0] 
 
     for i, pred in enumerate(predictions):
         predicted_class = np.argmax(pred)
