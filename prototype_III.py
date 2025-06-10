@@ -69,7 +69,7 @@ def video_capture_with_canvas(video_path, display):
     mp_face_mesh = mp.solutions.face_mesh
     face_mesh = mp_face_mesh.FaceMesh(static_image_mode=False,
                                    max_num_faces=1,
-                                   refine_landmarks=True,
+                                   refine_landmarks=False,
                                    min_detection_confidence=0.5,
                                    min_tracking_confidence=0.5)
     
