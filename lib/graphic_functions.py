@@ -174,7 +174,7 @@ def calculate_measures_distances(landmarks):
 
     # Eye vertical between (45,44)↔(47,48) → mp mean(387,385)↔mean(373,380)
     mean_e3_1 = np.mean([landmarks[387], landmarks[385]],axis=0)
-    mean_e3_2 = np.mean([landmarks[373], landmarks [380]],axis=0)
+    mean_e3_2 = np.mean([landmarks[373], landmarks[380]],axis=0)
     e3 = euclidean_distance(mean_e3_1, mean_e3_2)
 
     # Eyebrow‑Nose left (28↔20 → mp 168↔105)

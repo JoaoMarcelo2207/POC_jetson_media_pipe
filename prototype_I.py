@@ -32,10 +32,6 @@ def video_capture_with_canvas(video_path, display):
     Overlays facial landmarks correctly aligned to the face.
     """
 
-    #paths for the NN model
-    model_path = r"C:\Users\joao.miranda\Documents\POC\POC_jetson_media_pipe\Neural Network [POC]\protD_tf_218_cpu.keras"
-    model = tf.keras.models.load_model(model_path)
-    
     # Abrir vídeo ou webcam
     if video_path:
         print(f"Processing video file: {video_path}")
@@ -75,9 +71,12 @@ def video_capture_with_canvas(video_path, display):
     mp_face_mesh = mp.solutions.face_mesh
     with mp_face_mesh.FaceMesh(static_image_mode=False,
                            max_num_faces=1,
-                           refine_landmarks=True,
+                           refine_landmarks=False,
                            min_detection_confidence=0.5,
                            min_tracking_confidence=0.5) as face_mesh:
+        
+        start_time = time.time()
+        frame_idx = 0
         while True:
             loop_start = time.perf_counter()
             ret, img_all = cap.read()
@@ -160,7 +159,7 @@ def video_capture_with_canvas(video_path, display):
                 # Verifica se a preparação das subFIFOs foi bem-sucedida
                 if matrices_subfifos is not None:
                     # Faz a inferência para as 3 subFIFOs
-                    results = fifo.infer_emotions_for_subfifos(model, matrices_subfifos)
+                    results = fifo.infer_emotions_for_subfifos(matrices_subfifos)
                     # Processa os resultados para cada subFIFO (A, B, C)
                     for result in results:
                         subfifo_name, emotion_class, prob = result  # Desempacota corretamente os 3 valores
@@ -206,10 +205,9 @@ def video_capture_with_canvas(video_path, display):
                 t9 = time.perf_counter()
 
                 # 10. FPS + uso de RAM
-                # Finaliza o tempo de loop
-                loop_end = time.perf_counter()
-                
-                if video_path:
+                loop_end = time.perf_counter() # Finaliza o tempo de loop
+                ram_usage = process.memory_info().rss / 1024 / 1024  # em MB
+                if video_path: # Sincronizar a execução com o tempo real do vídeo (reprodução normalizada)
                     loop_duration = loop_end - loop_start
                     # Espera o tempo necessário para manter frame_duration (ex: 1/30s = 0.033s)
                     sleep_time = max(0, frame_duration - loop_duration)
@@ -219,11 +217,11 @@ def video_capture_with_canvas(video_path, display):
                 else:
                     fps = 1.0 / (loop_end - loop_start) if loop_end > loop_start else 0.0
 
-                ram_usage = process.memory_info().rss / 1024 / 1024  # em MB
-
                 label_text = f"FPS: {fps:.2f} | RAM: {ram_usage:.1f} MB"
                 fps_pos = (positions["camera"][0] + 10, positions["camera"][1] + 20)
                 cv2.putText(canvas, label_text, fps_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+
+
                 
                 print(f"""
                 Tempo leitura frame:         {t1 - t0:.4f}s
@@ -237,6 +235,7 @@ def video_capture_with_canvas(video_path, display):
                 Tempo plot gráfico:          {t9 - t8:.4f}s
                 Tempo total do loop:         {loop_end - loop_start:.4f}s
                 FPS estimado:                {fps:.2f}
+                FPS OPENCV:                  {fps_cv2:.2f}
                 RAM (rss):                   {ram_usage:.1f} MB
                 """)
 
