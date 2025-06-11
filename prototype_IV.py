@@ -30,7 +30,7 @@ SEAL_COUNTER = 0
 
 def video_capture_with_canvas(video_path, display):
     """
-    Captures frames from the camera and displays them on a canvas with sections for the camera, scatter plot, and line chart.
+    Captures frames from the camera or video and displays them on a canvas with sections for the camera, scatter plot, and line chart.
     Adds an additional line chart below the existing one, showing raw (non-normalized) measures.
     Overlays facial landmarks correctly aligned to the face.
     """
@@ -48,7 +48,7 @@ def video_capture_with_canvas(video_path, display):
 
     if not cap.isOpened():
         print("Error: Could not open video source.")
-        return
+        return 
     
     # Canvas dimensions and sections
     canvas, positions, camera_space, scatter_space, line_chart_space = gf.create_canvas(
@@ -63,7 +63,7 @@ def video_capture_with_canvas(video_path, display):
     time_series_buffer_normalized = deque(maxlen=gf.PLOT_SIZE)
     time_series_buffer_raw = deque(maxlen=gf.PLOT_SIZE)
 
-    # Inicializa o buffer de cores vazio
+    # Color buffer
     color_buffer = deque(maxlen=gf.PLOT_SIZE)
 
     pid = os.getpid()
@@ -82,7 +82,6 @@ def video_capture_with_canvas(video_path, display):
     while True:
         loop_start = time.perf_counter()
         ret, img_all = cap.read()
-        t0 = time.perf_counter()
 
         if (not ret or img_all is None) and video_path is not None:
             print("End of video or error reading frame.")
@@ -90,7 +89,6 @@ def video_capture_with_canvas(video_path, display):
         elif not ret or img_all is None:
             print("Error capturing frame from the camera.")
             break
-        t1 = time.perf_counter()
         
         # Envia o frame para a thread processar
         landmark_thread.set_frame(img_all)
@@ -99,15 +97,12 @@ def video_capture_with_canvas(video_path, display):
 
         if landmarks is None:
             continue
-        t2 = time.perf_counter()
 
         if landmarks is not None:
-            t3 = time.perf_counter()
 
             # Normalized and raw points
             normalized_points = gf.normalization(landmarks, (gf.normal_height_img, gf.normal_width_img))
             raw_points = landmarks  # Direct raw points without normalization
-            t4 = time.perf_counter()
 
             # Overlay landmarks on the original frame before resizing
             for (x, y) in landmarks:
@@ -118,16 +113,13 @@ def video_capture_with_canvas(video_path, display):
 
             canvas[positions["camera"][1]:positions["camera"][1] + camera_space[1],
                 positions["camera"][0]:positions["camera"][0] + camera_space[0]] = camera_frame
-            t5 = time.perf_counter()
 
             # Plot points in the scatter section
             canvas = gf.plot_scatter(canvas, scatter_space, positions["scatter"], normalized_points)
-            t6 = time.perf_counter()
 
             # Calculate measures and update buffers
             measures_normalized = gf.calculate_measures_distances(normalized_points)
             measures_raw = gf.calculate_measures_distances(raw_points)
-            t7 = time.perf_counter()
 
 
             new_value_norm = measures_normalized["m3"] if measures_normalized else None
@@ -188,7 +180,6 @@ def video_capture_with_canvas(video_path, display):
                     emotion_classes.append(emotion_class)
                     probs.append(prob)
 
-            t8 = time.perf_counter()
             # Atualiza o buffer de cores dinamicamente
             if SEAL_COUNTER > 0:
                 color_buffer.append(SEAL_COLOR)
@@ -202,8 +193,6 @@ def video_capture_with_canvas(video_path, display):
             # Plot the raw time-series in the additional line chart section
             canvas = gf.plot_line_chart(canvas, line_chart_space, positions["line_chart_raw"], list(time_series_buffer_raw), color=(255, 0, 0))
 
-            t9 = time.perf_counter()
-
             # 10. FPS + uso de RAM
             loop_end = time.perf_counter()
             ram_usage = process.memory_info().rss / 1024 / 1024  # em MB
@@ -216,27 +205,10 @@ def video_capture_with_canvas(video_path, display):
                     fps = 1.0 / (loop_duration + sleep_time) if (loop_duration + sleep_time) > 0 else 0.0
             else:
                 fps = 1.0 / (loop_end - loop_start) if loop_end > loop_start else 0.0
-
-            
         
             label_text = f"FPS: {fps:.2f} | RAM: {ram_usage:.1f} MB"
             fps_pos = (positions["camera"][0] + 10, positions["camera"][1] + 20)
             cv2.putText(canvas, label_text, fps_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
-            
-            print(f"""
-            Tempo leitura frame:         {t1 - t0:.4f}s
-            Tempo detecção rosto:        {t2 - t1:.4f}s
-            Tempo landmarks:             {t3 - t2:.4f}s
-            Tempo normalização:          {t4 - t3:.4f}s
-            Tempo desenhar e resize:     {t5 - t4:.4f}s
-            Tempo scatter:               {t6 - t5:.4f}s
-            Tempo medidas:               {t7 - t6:.4f}s
-            Tempo inferência+FIFO:       {t8 - t7:.4f}s
-            Tempo plot gráfico:          {t9 - t8:.4f}s
-            Tempo total do loop:         {loop_end - loop_start:.4f}s
-            FPS estimado:                {fps:.2f}
-            RAM (rss):                   {ram_usage:.1f} MB
-            """)
 
         if display:
             cv2.imshow("Canvas", canvas)
