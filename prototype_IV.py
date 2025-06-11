@@ -66,15 +66,9 @@ def video_capture_with_canvas(video_path, display):
     # Color buffer
     color_buffer = deque(maxlen=gf.PLOT_SIZE)
 
+    #Monitorar Ram
     pid = os.getpid()
     process = psutil.Process(pid)
-
-    mp_face_mesh = mp.solutions.face_mesh
-    face_mesh = mp_face_mesh.FaceMesh(static_image_mode=False,
-                                   max_num_faces=1,
-                                   refine_landmarks=False,
-                                   min_detection_confidence=0.5,
-                                   min_tracking_confidence=0.5)
     
     landmark_thread = LandmarkProcessor()
     landmark_thread.start()
