@@ -1,6 +1,5 @@
 import cv2
 import sys, os, argparse
-import tensorflow as tf
 from collections import deque
 import mediapipe as mp
 import time
