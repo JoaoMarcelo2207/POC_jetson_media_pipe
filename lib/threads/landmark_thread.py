@@ -23,7 +23,7 @@ class LandmarkProcessor(threading.Thread):
 
     def set_frame(self, frame):
         with self.lock:
-            self.input_frame = frame.copy()
+            self.input_frame = frame
         self.new_frame_event.set()
 
     def get_landmarks(self):
