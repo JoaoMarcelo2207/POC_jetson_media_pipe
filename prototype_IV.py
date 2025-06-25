@@ -1,17 +1,15 @@
 import cv2
 import sys, os, argparse
 from collections import deque
-import mediapipe as mp
 import time
 import psutil
-from queue import Queue, Empty
-
 
 # Import additional functions
 sys.path.append(os.path.join("lib"))
-import video_adjuster_functions as vid_adj_fun, fifo_manager as fifo, graphic_functions as gf
+import fifo_manager as fifo, graphic_functions as gf
 sys.path.append(os.path.join("lib", "threads"))
 from landmark_thread import LandmarkProcessor
+
 
 
 # Configurações do gráfico
