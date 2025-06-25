@@ -1,6 +1,5 @@
 import cv2
 import sys, os, argparse
-import tensorflow as tf
 from collections import deque
 import mediapipe as mp
 import time
@@ -28,6 +27,7 @@ SEAL_COLOR = None
 LAST_COLOR = COLOR_STD
 SEAL_COUNTER = 0
 
+
 def video_capture_with_canvas(video_path, display):
     """
     Captures frames from the camera or video and displays them on a canvas with sections for the camera, scatter plot, and line chart.
@@ -44,7 +44,13 @@ def video_capture_with_canvas(video_path, display):
         frame_duration = 1.0 / fps_cv2
     else:
         print("Capturing from webcam...")
-        cap = cv2.VideoCapture(0)
+        cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
+        # Força resolução
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        cap.set(cv2.CAP_PROP_FPS, 30)
+
 
     if not cap.isOpened():
         print("Error: Could not open video source.")

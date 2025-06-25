@@ -23,7 +23,7 @@ class LandmarkProcessor(threading.Thread):
 
     def set_frame(self, frame):
         with self.lock:
-            self.input_frame = frame.copy()
+            self.input_frame = frame
         self.new_frame_event.set()
 
     def get_landmarks(self):
@@ -41,14 +41,26 @@ class LandmarkProcessor(threading.Thread):
             if frame is None:
                 continue
 
-            img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # Salva resolução original
+            orig_h, orig_w, _ = frame.shape
+
+            # Redimensiona para acelerar a inferência
+            resized_frame = cv2.resize(frame, (320, 180))
+            resized_h, resized_w = resized_frame.shape[:2]
+
+            # Converte pra RGB e roda inferência
+            img_rgb = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
             results = self.face_mesh.process(img_rgb)
 
             if results.multi_face_landmarks:
-                h, w, _ = frame.shape
                 landmarks = []
+                # Faz a reescala dos pontos detectados pro frame original
+                scale_x = orig_w / resized_w
+                scale_y = orig_h / resized_h
+
                 for lm in results.multi_face_landmarks[0].landmark:
-                    x, y = int(lm.x * w), int(lm.y * h)
+                    x = int(lm.x * resized_w * scale_x)
+                    y = int(lm.y * resized_h * scale_y)
                     landmarks.append((x, y))
 
                 with self.lock:
@@ -56,6 +68,8 @@ class LandmarkProcessor(threading.Thread):
             else:
                 with self.lock:
                     self.landmarks = None
+
+
 
     def stop(self):
         self.running = False

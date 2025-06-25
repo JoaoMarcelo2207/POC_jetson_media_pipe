@@ -1,5 +1,4 @@
 import numpy as np
-import tensorflow as tf 
 from collections import deque
 from sklearn.preprocessing import MinMaxScaler
 import onnxruntime as ort
