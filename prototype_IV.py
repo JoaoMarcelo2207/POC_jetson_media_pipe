@@ -92,6 +92,7 @@ def video_capture_with_canvas(video_path, display):
         landmark_thread.set_frame(img_all)
         # Pega o resultado da thread (da iteração anterior)
         landmarks = landmark_thread.get_landmarks()
+        print(f"RAM usada (MB): {psutil.Process(os.getpid()).memory_info().rss / 1024**2:.2f}")
 
         if landmarks is None:
             continue
@@ -119,7 +120,6 @@ def video_capture_with_canvas(video_path, display):
             measures_normalized = gf.calculate_measures_distances(normalized_points)
             measures_raw = gf.calculate_measures_distances(raw_points)
 
-
             new_value_norm = measures_normalized["m3"] if measures_normalized else None
             new_value_raw = measures_raw["m3"] if measures_raw else None
 
@@ -135,11 +135,8 @@ def video_capture_with_canvas(video_path, display):
 
             fifo.update_fifos(measures_normalized)
 
-            # Obter a matriz no formato (32, 22)
-            #fifo_matrix = fifo.get_fifo_matrix()
 
-            #Matriz para inferencia
-            
+            #Matriz para inferencia            
             matrices_subfifos = fifo.prepare_subfifo_matrix()
 
             emotion_classes = []
