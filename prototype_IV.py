@@ -34,7 +34,7 @@ def video_capture_with_canvas(video_path, display):
     Overlays facial landmarks correctly aligned to the face.
     """
     
-    # Abrir vídeo ou webcam
+    # Open video
     if video_path:
         print(f"Processing video file: {video_path}")
         cap = cv2.VideoCapture(video_path)
@@ -44,7 +44,7 @@ def video_capture_with_canvas(video_path, display):
     else:
         print("Capturing from webcam...")
         cap = cv2.VideoCapture(0)
-        # Força resolução
+        # Resolution forced
         cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
@@ -67,14 +67,14 @@ def video_capture_with_canvas(video_path, display):
     time_series_buffer_normalized = deque(maxlen=gf.PLOT_SIZE)
     time_series_buffer_raw = deque(maxlen=gf.PLOT_SIZE)
 
-    # Color buffer para o grafico
+    # Color buffer
     color_buffer = deque(maxlen=gf.PLOT_SIZE)
 
-    #Monitorar Ram
+    #RAM Usage
     pid = os.getpid()
     process = psutil.Process(pid)
     
-    #Inicia thread para landmark detection
+    #Start thread for landmark detection
     landmark_thread = LandmarkProcessor()
     landmark_thread.start()
     
