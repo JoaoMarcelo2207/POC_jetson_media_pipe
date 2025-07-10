@@ -1,16 +1,16 @@
 import threading
 import cv2
 import mediapipe as mp
+from queue import Queue, Empty
 
 class LandmarkProcessor(threading.Thread):
     def __init__(self):
         super().__init__()
         self.running = True
-        self.input_frame = None
-        self.lock = threading.Lock()
-        self.new_frame_event = threading.Event()
-        self.results = None
-        self.landmarks = None
+
+        # Fila com tamanho 1: sempre mantém o frame mais recente
+        self.input_queue = Queue(maxsize=1)
+        self.output_queue = Queue(maxsize=1)
 
         mp_face_mesh = mp.solutions.face_mesh
         self.face_mesh = mp_face_mesh.FaceMesh(
@@ -22,23 +22,25 @@ class LandmarkProcessor(threading.Thread):
         )
 
     def set_frame(self, frame):
-        with self.lock:
-            self.input_frame = frame
-        self.new_frame_event.set()
+        # Substitui o frame atual na fila (se houver)
+        if not self.input_queue.empty():
+            try:
+                self.input_queue.get_nowait()
+            except Empty:
+                pass
+        self.input_queue.put_nowait(frame)
 
     def get_landmarks(self):
-        with self.lock:
-            return self.landmarks
+        try:
+            return self.output_queue.get_nowait()
+        except Empty:
+            return None
 
     def run(self):
         while self.running:
-            self.new_frame_event.wait()
-            self.new_frame_event.clear()
-
-            with self.lock:
-                frame = self.input_frame.copy() if self.input_frame is not None else None
-
-            if frame is None:
+            try:
+                frame = self.input_queue.get(timeout=1)
+            except Empty:
                 continue
 
             # Salva resolução original
@@ -54,7 +56,7 @@ class LandmarkProcessor(threading.Thread):
 
             if results.multi_face_landmarks:
                 landmarks = []
-                # Faz a reescala dos pontos detectados pro frame original
+                # Reescala os pontos para o frame original
                 scale_x = orig_w / resized_w
                 scale_y = orig_h / resized_h
 
@@ -63,14 +65,21 @@ class LandmarkProcessor(threading.Thread):
                     y = int(lm.y * resized_h * scale_y)
                     landmarks.append((x, y))
 
-                with self.lock:
-                    self.landmarks = landmarks
+                # Substitui landmarks anteriores na fila
+                if not self.output_queue.empty():
+                    try:
+                        self.output_queue.get_nowait()
+                    except Empty:
+                        pass
+                self.output_queue.put_nowait(landmarks)
             else:
-                with self.lock:
-                    self.landmarks = None
-
-
+                # Também limpa a fila se não houve detecção
+                if not self.output_queue.empty():
+                    try:
+                        self.output_queue.get_nowait()
+                    except Empty:
+                        pass
+                self.output_queue.put_nowait(None)
 
     def stop(self):
         self.running = False
-        self.new_frame_event.set()
