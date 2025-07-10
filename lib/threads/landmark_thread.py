@@ -77,7 +77,7 @@ class LandmarkProcessor(threading.Thread):
 
                 loop_thread_end = time.perf_counter()
                 loop_duration_thread = loop_thread_end - loop_thread_start
-                int(f"Tempo de processamento: {loop_duration_thread * 1000:.2f} ms")
+                print(f"Tempo de processamento: {loop_duration_thread * 1000:.2f} ms")
 
             else:
                 # Também limpa a fila se não houve detecção
