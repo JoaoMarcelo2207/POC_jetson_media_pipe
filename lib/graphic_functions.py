@@ -9,7 +9,7 @@ window_scale_size = 2
 normal_height_img = 300 * window_scale_size
 normal_width_img = 240 * window_scale_size
 
-PLOT_SIZE = 200  # Deve bater com o tamanho dos buffers
+PLOT_SIZE = 200  
 
 
 def create_canvas(camera_space, scatter_space, line_chart_space):
@@ -116,60 +116,47 @@ def calculate_measures_distances(landmarks):
         """Calculates the Euclidean distance between two points."""
         return np.sqrt((p2[0] - p1[0]) ** 2 + (p2[1] - p1[1]) ** 2)
     
-    # Internal mouth 1 vertical 63 and 67
+    # Internal mouth 1 vertical 63 and 67 (Dlib)  → mp 13↔14
     m1 = euclidean_distance(landmarks[13], landmarks[14])
-
-    # External mouth horizontal 49 and 55
+    # External mouth horizontal 49 and 55 (Dlib)  → mp 61↔291
     m3 = euclidean_distance(landmarks[61], landmarks[291])
-
-    # Upper lips 1 vertical 52 and 63
+    # Upper lips 1 vertical 52 and 63 (Dlib) → mp 0↔13
     m4 = euclidean_distance(landmarks[0], landmarks[13])
-
-    # Lower lips vertical (67↔58 → mp 14↔17)
+    # Lower lips vertical (67↔58 (Dlib) → mp 14↔17)
     m5 = euclidean_distance(landmarks[14], landmarks[17])
-
-    # Upper lips horizontal (62↔64 → mp 82↔312)
+    # Upper lips horizontal (62↔64 (Dlib) → mp 82↔312)
     m6 = euclidean_distance(landmarks[82], landmarks[312])
-
-    # Lower lips horizontal (59↔57 → mp 84↔314)
+    # Lower lips horizontal (59↔57 (Dlib) → mp 84↔314)
     m7 = euclidean_distance(landmarks[84], landmarks[314])
-
-    # Upper lip ↔ nose (34↔52 → mp 2↔0)
+    # Upper lip ↔ nose (34↔52 (Dlib) → mp 2↔0)
     m8 = euclidean_distance(landmarks[2], landmarks[0])
-
-    # Lower lip ↔ nose (34↔58 → mp 2↔17)
+    # Lower lip ↔ nose (34↔58 (Dlib) → mp 2↔17)
     m9 = euclidean_distance(landmarks[2], landmarks[17])
-
-    # Internal lower lip ↔ nose (34↔67 → mp 2↔14)
+    # Internal lower lip ↔ nose (34↔67 (Dlib) → mp 2↔14)
     m10 = euclidean_distance(landmarks[2], landmarks[14])
-
-    # Mouth mean (63,67) ↔ nose (34 → mp mean(13,14)↔2)
+    # Mouth mean (63,67) (Dlib) ↔ nose (34 → mp mean(13,14)↔2)
     mean_m11 = np.mean([landmarks[13], landmarks[14]], axis=0)
     m11 = euclidean_distance(mean_m11, landmarks[2])
-
-    # Mouth‑Nose vertical left (34↔49 → mp 2↔61)
+    # Mouth‑Nose vertical left (34↔49 (Dlib) → mp 2↔61)
     m12 = euclidean_distance(landmarks[2], landmarks[61])
-
-    # Mouth‑Nose vertical right (34↔55 → mp 2↔291)
+    # Mouth‑Nose vertical right (34↔55 (Dlib) → mp 2↔291)
     m13 = euclidean_distance(landmarks[2], landmarks[291])
-
-    # Mouth mean (49,55) ↔ upper lip (52 → mp mean(61,291)↔0)
+    # Mouth mean (49,55) (Dlib) ↔ upper lip (52 → mp mean(61,291)↔0)
     mean_m14_m15_m16_m17 = np.mean([landmarks[61], landmarks[291]],axis=0)
     m14 = euclidean_distance(mean_m14_m15_m16_m17, landmarks[0])
-
-    # Mouth mean (49,55) ↔ lower lip (58 → mp mean(61,291)↔17)
+    # Mouth mean (49,55)(Dlib) ↔ lower lip (58 (Dlib) → mp mean(61,291)↔17)
     m15 = euclidean_distance(mean_m14_m15_m16_m17, landmarks[17])
 
-    # Mouth mean (49,55) ↔ internal lower lip (67 → mp mean(61,291)↔14)
+    # Mouth mean (49,55)(Dlib) ↔ internal lower lip (67(Dlib) → mp mean(61,291)↔14)
     m16 = euclidean_distance(mean_m14_m15_m16_m17, landmarks[14])
 
-    # Mouth mean (49,55) ↔ internal mouth top (63 → mp mean(61,291)↔13)
+    # Mouth mean (49,55)(Dlib) ↔ internal mouth top (63(Dlib) → mp mean(61,291)↔13)
     m17 = euclidean_distance(mean_m14_m15_m16_m17, landmarks[13])
 
-    # Left eye vertical (38↔42 → mp 160↔144)
+    # Left eye vertical (38↔42(Dlib) → mp 160↔144)
     e1 = euclidean_distance(landmarks[160], landmarks[144])
 
-    # Right eye vertical (44↔48 → mp 385↔380)
+    # Right eye vertical (44↔48(Dlib) → mp 385↔380)
     e2 = euclidean_distance(landmarks[385], landmarks[380])
 
     # Eye vertical between (45,44)↔(47,48) → mp mean(387,385)↔mean(373,380)

@@ -128,6 +128,12 @@ def infer_emotions_for_subfifos(fifo_matrix):
     return results
 
 
+
+
+
+
+
+"""
 def check_subfifos_shiftando():
     global last_subfifos_snapshot
 
@@ -152,15 +158,15 @@ def check_subfifos_shiftando():
         last_subfifos_snapshot[nome] = {k: list(v) for k, v in sub_fifo.items()}
 
 def get_fifo_matrix(n=32):
-    """
-    Retorna uma matriz 22x33, onde:
-    - 1ª coluna: Nome da medida.
-    - 32 colunas seguintes: Primeiros 32 valores da FIFO dessa medida.
+
+    #Retorna uma matriz 22x33, onde:
+    #- 1ª coluna: Nome da medida.
+   # - 32 colunas seguintes: Primeiros 32 valores da FIFO dessa medida.
     
-    Retorna:
-        - matrix (np.array): Matriz NumPy 22x33 com os nomes e valores.
-    Se houver menos de 32 valores em alguma medida, retorna None.
-    """
+    #Retorna:
+   #     - matrix (np.array): Matriz NumPy 22x33 com os nomes e valores.
+   # Se houver menos de 32 valores em alguma medida, retorna None.
+
     if len(measures_fifos) < 22:
         print("Erro: Existem menos de 22 medidas disponíveis na FIFO.")
         return None
@@ -178,15 +184,15 @@ def get_fifo_matrix(n=32):
     return np.array(matrix_data, dtype=object)
 
 def prepare_data_for_inference(n=45, n_measures=21):  # Alterado para 45
-    """
-    Retorna uma matriz no formato (45, 22), onde:
-    - 45 "frames" (grupos)
-    - Cada frame tem 22 medidas (valores das 22 medidas naquele instante)
+
+   # Retorna uma matriz no formato (45, 22), onde:
+  #  - 45 "frames" (grupos)
+  #  - Cada frame tem 22 medidas (valores das 22 medidas naquele instante)
     
-    Retorna:
-        - matrix (np.array): Matriz NumPy (45, 22) formatada corretamente.
-    Se houver menos de 45 valores em alguma medida, retorna None.
-    """
+  #  Retorna:
+  #      - matrix (np.array): Matriz NumPy (45, 22) formatada corretamente.
+  #  Se houver menos de 45 valores em alguma medida, retorna None.
+
     if len(measures_fifos) < n_measures:
         print("Erro: Existem menos de 21 medidas disponíveis na FIFO.")
         return None
@@ -216,17 +222,17 @@ def prepare_data_for_inference(n=45, n_measures=21):  # Alterado para 45
     return normalized_matrix
 
 def infer_emotion(model, fifo_matrix):
-    """
-    Faz a inferência no modelo carregado e retorna a classe predita (0, 1, 2) e a probabilidade.
+ 
+  #  Faz a inferência no modelo carregado e retorna a classe predita (0, 1, 2) e a probabilidade.
     
-    Parâmetros:
-        model (tf.keras.Model): Modelo carregado.
-        fifo_matrix (np.array): Matriz de entrada para inferência com shape (32, 22).
+   # Parâmetros:
+  #      model (tf.keras.Model): Modelo carregado.
+  #      fifo_matrix (np.array): Matriz de entrada para inferência com shape (32, 22).
     
-    Retorna:
-        predicted_class (int): Classe predita (0 = Happy, 1 = Neutral, 2 = Others).
-        confidence (float): Probabilidade associada à classe predita.
-    """
+  #  Retorna:
+  #      predicted_class (int): Classe predita (0 = Happy, 1 = Neutral, 2 = Others).
+  #      confidence (float): Probabilidade associada à classe predita.
+
     if fifo_matrix is None or fifo_matrix.shape != (10, 21):
         print("Erro: Matriz de entrada inválida para inferência.")
         return None, None
@@ -242,32 +248,32 @@ def infer_emotion(model, fifo_matrix):
     confidence = np.max(predictions)
 
     
-    '''
+
     probabilities = predictions.flatten()  # Mantém todas as probabilidades
 
     for i, prob in enumerate(probabilities):
         print(f"Classe {i}: {prob*100:.2f}%")
-    ''' 
+
 
     return predicted_class, confidence
 
 def correlate_with_reference(measure_name, reference_vector):
-    """
-    Calcula a correlação cruzada entre um vetor de referência e as subFIFOs A, B e C 
-    da medida especificada.
 
-    Parâmetros:
-        measure_name (str): Nome da medida (ex: 'acel_x').
-        reference_vector (list ou np.array): Vetor de referência a ser comparado.
+  #  Calcula a correlação cruzada entre um vetor de referência e as subFIFOs A, B e C 
+ #   da medida especificada.
 
-    Retorna:
-        Um dicionário com os resultados para cada subFIFO:
-        {
-            'A': {'max_corr': valor, 'index': idx},
-            'B': {'max_corr': valor, 'index': idx},
-            'C': {'max_corr': valor, 'index': idx}
-        }
-    """
+#    Parâmetros:
+ #       measure_name (str): Nome da medida (ex: 'acel_x').
+ #       reference_vector (list ou np.array): Vetor de referência a ser comparado.
+
+  #  Retorna:
+   #     Um dicionário com os resultados para cada subFIFO:
+   #     {
+    #        'A': {'max_corr': valor, 'index': idx},
+    #        'B': {'max_corr': valor, 'index': idx},
+    #        'C': {'max_corr': valor, 'index': idx}
+   #     }
+
     results = {}
     ref = np.array(reference_vector)
     ref_len = len(ref)
@@ -297,3 +303,4 @@ def correlate_with_reference(measure_name, reference_vector):
         results[label] = {'max_corr': max_corr, 'index': best_index}
 
     return results
+"""
