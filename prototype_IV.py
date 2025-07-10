@@ -12,19 +12,19 @@ from landmark_thread import LandmarkProcessor
 
 
 
-# Configurações do gráfico
-COLOR_STD = (0, 0, 255)    # Vermelho - padrão
-COLOR_ABOUT = (255, 255, 0)  # Azul - classe "about"
-COLOR_INTERVIEW = (0, 255, 0) # Verde - classe "interview"
-COLOR_HAVE = (255,0,0)
+# Graphic Config
+COLOR_STD = (0, 0, 255)    # Red - Standard
+COLOR_ABOUT = (255, 255, 0)  # Light Blue - class "about"
+COLOR_INTERVIEW = (0, 255, 0) # Green - class "interview"
+COLOR_HAVE = (255,0,0) # Blue - class "have"
 color_buffer = deque(maxlen=gf.PLOT_SIZE)
 for _ in range(gf.PLOT_SIZE):
-    color_buffer.append(COLOR_STD)  # Buffer de cores
-WINDOW_SIZE = 10  # Janela de pontos a serem coloridos após a predição
+    color_buffer.append(COLOR_STD)
+WINDOW_SIZE = 10  # Window points that will be coloried after prediction
 SEAL_COLOR = None
 LAST_COLOR = COLOR_STD
 SEAL_COUNTER = 0
-FIFO_SIZE = 150  # Definição do tamanho da FIFO
+FIFO_SIZE = 150 
 
 
 def video_capture_with_canvas(video_path, display):
@@ -39,7 +39,7 @@ def video_capture_with_canvas(video_path, display):
         print(f"Processing video file: {video_path}")
         cap = cv2.VideoCapture(video_path)
         video_originalFPS = cap.get(cv2.CAP_PROP_FPS)
-        print(f"FPS original do vídeo: {video_originalFPS:.2f}")
+        print(f"Video Original FPS: {video_originalFPS:.2f}")
         frame_duration = 1.0 / video_originalFPS
     else:
         print("Capturing from webcam...")
@@ -89,12 +89,12 @@ def video_capture_with_canvas(video_path, display):
             print("Error capturing frame from the camera.")
             break
         
-        # Envia o frame para a thread processar
+        # Sends the frame for the thread
         landmark_thread.set_frame(img_all)
-        # Pega o resultado da thread (da iteração anterior)
+        # gets the results from the thread
         landmarks = landmark_thread.get_landmarks()
 
-        #Se a thread não detectou nada (1a interacao)
+        #If the thread didn't detect anything (first interaction)
         if landmarks is None:
             continue
         
@@ -122,14 +122,14 @@ def video_capture_with_canvas(video_path, display):
         time_series_buffer_normalized.append(measures_normalized["m3"] if measures_normalized else None)
         time_series_buffer_raw.append(measures_raw["m3"] if measures_raw else None)
         
-        # Inicializa os FIFOs com o tamanho definido se ela não foi iniciada
+        # Start FIFOs with defined size if it wasan't started before
         if not fifo.measures_fifos:
             fifo.initialize_fifos(measures_normalized.keys(), FIFO_SIZE)
 
-        #Adiciona valores a fifo
+        #Add values to the fifo
         fifo.update_fifos(measures_normalized)
 
-        #Matriz para inferencia            
+        #Inference Matrix            
         matrices_subfifos = fifo.prepare_subfifo_matrix()
 
         emotion_classes = []
@@ -137,15 +137,15 @@ def video_capture_with_canvas(video_path, display):
         
         global SEAL_COLOR, SEAL_COUNTER
 
-        # Verifica se a preparação das subFIFOs foi bem-sucedida
+        # Verify if subFIFOS preparation was successeful
         if matrices_subfifos is not None:
-            # Faz a inferência para as 3 subFIFOs
+            # Inference for the 3 subfifos
             results = fifo.infer_emotions_for_subfifos(matrices_subfifos)
-            # Processa os resultados para cada subFIFO (A, B, C)
+            # Process each subFIFO result (A, B, C)
             for result in results:
-                subfifo_name, emotion_class, prob = result  # Desempacota corretamente os 3 valores
-                # Define a cor com base na classe
-                new_color = COLOR_STD # cor padrão
+                subfifo_name, emotion_class, prob = result  # Unpacks the 3 values
+                # Define a color based on the class
+                new_color = COLOR_STD # standard color
                 if emotion_class == 3:
                     #new_color = COLOR_INTERVIEW
                     emotion_class = "interview"
@@ -158,17 +158,17 @@ def video_capture_with_canvas(video_path, display):
                 else:
                     #new_color = COLOR_ALEATORIO
                     emotion_class = "aleatorio"
-                # Exibe a inferência
+                # Shows the inference
                 print(f"SubFIFO {subfifo_name} - {emotion_class}, Probabilidade: {prob:.2f}")
 
-                # Ativa o selamento por WINDOW_SIZE frames
+                # Graphic Window that will be colored
                 SEAL_COLOR = new_color
                 SEAL_COUNTER = WINDOW_SIZE
 
                 emotion_classes.append(emotion_class)
                 probs.append(prob)
 
-        # Atualiza o buffer de cores dinamicamente
+        # Update color buffer 
         if SEAL_COUNTER > 0:
             color_buffer.append(SEAL_COLOR)
             SEAL_COUNTER -= 1
@@ -181,15 +181,15 @@ def video_capture_with_canvas(video_path, display):
         # Plot the raw time-series in the additional line chart section
         canvas = gf.plot_line_chart(canvas, line_chart_space, positions["line_chart_raw"], list(time_series_buffer_raw), color=(255, 0, 0))
 
-        #FPS + uso de RAM
+        #FPS + RAM Usage
         loop_end = time.perf_counter()
-        ram_usage = process.memory_info().rss / 1024 / 1024  # em MB
-        if video_path: # Sincronizar a execução com o tempo real do vídeo (reprodução normalizada)
+        ram_usage = process.memory_info().rss / 1024 / 1024  # in MB
+        if video_path: # Sincronize the execution with video real time
                 loop_duration = loop_end - loop_start
-                # Espera o tempo necessário para manter frame_duration (ex: 1/30s = 0.033s)
+                # Wait the necessesary time to keep frame_duration (example: 1/30s = 0.033s)
                 sleep_time = max(0, frame_duration - loop_duration)
                 time.sleep(sleep_time)
-                # Agora mede o FPS após o sleep
+                # FPS after sleep
                 fps = 1.0 / (loop_duration + sleep_time) if (loop_duration + sleep_time) > 0 else 0.0
         else:
             fps = 1.0 / (loop_end - loop_start) if loop_end > loop_start else 0.0
