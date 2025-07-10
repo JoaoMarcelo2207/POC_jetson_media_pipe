@@ -17,7 +17,7 @@ scaler_fitted = False
 last_subfifos_snapshot = {"A": {}, "B": {}, "C": {}}
 
 #Carregar Modelo
-model_path = r"C:\Users\joao.miranda\Documents\POC\POC_jetson_media_pipe\Neural Network [POC]\transformer_model.onnx"
+model_path = "/home/joaomarcelohpc/Documents/POC_jetson_media_pipe/Neural Network [POC]/transformer_model.onnx"
 session = ort.InferenceSession(model_path, providers=["TensorrtExecutionProvider", "CUDAExecutionProvider"])
 input_name = session.get_inputs()[0].name
 

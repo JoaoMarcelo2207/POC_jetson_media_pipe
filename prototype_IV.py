@@ -43,7 +43,7 @@ def video_capture_with_canvas(video_path, display):
         frame_duration = 1.0 / video_originalFPS
     else:
         print("Capturing from webcam...")
-        cap = cv2.VideoCapture(0)
+        cap = cv2.VideoCapture(0, cv2.CAP_V4L2)
         # Resolution forced
         cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
