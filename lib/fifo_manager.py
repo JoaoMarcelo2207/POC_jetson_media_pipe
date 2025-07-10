@@ -2,6 +2,7 @@ import numpy as np
 from collections import deque
 from sklearn.preprocessing import MinMaxScaler
 import onnxruntime as ort
+import time
 
 measures_fifos = {}  # Dicionário global para armazenar as FIFOs
 
@@ -118,7 +119,11 @@ def infer_emotions_for_subfifos(fifo_matrix):
 
     subfifo_names = ['A', 'B', 'C']  # Nomes das subFIFOs para exibição
     batch = np.stack(fifo_matrix)  # shape (3, 30, 21)
+    start = time.perf_counter()
     predictions = session.run(None, {input_name: batch})[0] 
+    end = time.perf_counter()
+    temp = start - end
+    print(f"Tempo de Inferência: {temp*1000:.1f} ms")
 
     for i, pred in enumerate(predictions):
         predicted_class = np.argmax(pred)

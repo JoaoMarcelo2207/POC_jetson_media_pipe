@@ -195,7 +195,7 @@ def video_capture_with_canvas(video_path, display):
             fps = 1.0 / (loop_end - loop_start) if loop_end > loop_start else 0.0
     
         label_text = f"FPS: {fps:.2f} | RAM: {ram_usage:.1f} MB"
-        print("Uso da RAM: {ram_usage:.1f} MB")
+        print(f"Uso da RAM: {ram_usage:.1f} MB")
         fps_pos = (positions["camera"][0] + 10, positions["camera"][1] + 20)
         cv2.putText(canvas, label_text, fps_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
