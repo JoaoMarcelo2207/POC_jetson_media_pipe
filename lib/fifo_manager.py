@@ -122,7 +122,7 @@ def infer_emotions_for_subfifos(fifo_matrix):
     start = time.perf_counter()
     predictions = session.run(None, {input_name: batch})[0] 
     end = time.perf_counter()
-    temp = start - end
+    temp = end - start
     print(f"Tempo de Inferência: {temp*1000:.1f} ms")
 
     for i, pred in enumerate(predictions):
