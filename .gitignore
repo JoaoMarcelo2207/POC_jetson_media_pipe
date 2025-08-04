@@ -1,2 +1,2 @@
-POC_jetson_media_pipe/07 - Neural Network/better-facemesh/yolov4_headdetection_480x640_post.onnx
-POC_jetson_media_pipe/07 - Neural Network/better-facemesh/face_mesh_Nx3x192x192_post.onnx
+POC_jetson_media_pipe/lib/__pycache__
+*.pyc

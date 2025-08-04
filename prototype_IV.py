@@ -11,7 +11,6 @@ sys.path.append(os.path.join("lib", "threads"))
 from landmark_thread import LandmarkProcessor
 
 
-
 # Graphic Config
 COLOR_STD = (0, 0, 255)    # Red - Standard
 COLOR_ABOUT = (255, 255, 0)  # Light Blue - class "about"
