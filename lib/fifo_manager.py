@@ -1,7 +1,9 @@
 import numpy as np
 from collections import deque
 from sklearn.preprocessing import MinMaxScaler
-import onnxruntime as ort
+import tensorrt as trt
+import pycuda.driver as cuda
+import pycuda.autoinit 
 import time
 
 measures_fifos = {}  # Dicionário global para armazenar as FIFOs
@@ -17,9 +19,29 @@ scaler_fitted = False
 last_subfifos_snapshot = {"A": {}, "B": {}, "C": {}}
 
 #Carregar Modelo
-model_path = "/home/joaomarcelohpc/Documents/POC_jetson_media_pipe/Neural Network [POC]/transformer_model.onnx"
-session = ort.InferenceSession(model_path, providers=["TensorrtExecutionProvider", "CUDAExecutionProvider"])
-input_name = session.get_inputs()[0].name
+model_path = "/home/joaomarcelohpc/Documents/POC_jetson_media_pipe/Neural Network [POC]/modelo_fp16.engine"
+TRT_LOGGER = trt.Logger(trt.Logger.WARNING)
+with open(model_path, "rb") as f:
+    engine_data = f.read()
+
+runtime = trt.Runtime(TRT_LOGGER)
+engine = runtime.deserialize_cuda_engine(engine_data)
+context = engine.create_execution_context()
+
+# Pega shapes
+input_shape = tuple(engine.get_binding_shape(0))  # ex: (3, 30, 21)
+output_shape = tuple(engine.get_binding_shape(1))
+
+# Buffers CPU
+h_input = cuda.pagelocked_empty(trt.volume(input_shape), dtype=np.float16)
+h_output = cuda.pagelocked_empty(trt.volume(output_shape), dtype=np.float16)
+
+# Buffers GPU
+d_input = cuda.mem_alloc(h_input.nbytes)
+d_output = cuda.mem_alloc(h_output.nbytes)
+
+stream = cuda.Stream()
+
 
 def initialize_fifos(measure_names, fifo_size):
     """Inicializa uma FIFO separada para cada medida, com tamanho definido externamente."""
@@ -48,7 +70,6 @@ def update_subfifos():
         # Janela A: de 60 a 30 frames atrás
         slice_A = temp[-60:-30]
         sub_fifo_A[measure] = deque(slice_A, maxlen=30)
-
 
 def update_fifos(measures):
     """Atualiza as FIFOs com as novas medidas."""
@@ -118,21 +139,37 @@ def infer_emotions_for_subfifos(fifo_matrix):
     results = []
 
     subfifo_names = ['A', 'B', 'C']  # Nomes das subFIFOs para exibição
-    batch = np.stack(fifo_matrix)  # shape (3, 30, 21)
+    batch = np.stack(fifo_matrix).astype(np.float16)  # shape (3, 37, 21)
     start = time.perf_counter()
-    predictions = session.run(None, {input_name: batch})[0] 
+
+    # Copia dados para o buffer fixo
+    np.copyto(h_input, batch.ravel())
+    cuda.memcpy_htod_async(d_input, h_input, stream)
+
+    # Executa a inferência
+    context.execute_async_v2([int(d_input), int(d_output)], stream.handle)
+    
+    # Copia saída de volta
+    cuda.memcpy_dtoh_async(h_output, d_output, stream)
+    stream.synchronize()
+    
     end = time.perf_counter()
     temp = end - start
     print(f"Tempo de Inferência: {temp*1000:.1f} ms")
 
+    predictions = np.array(h_output).reshape(output_shape)
+
     for i, pred in enumerate(predictions):
+        pred = softmax(pred)
         predicted_class = np.argmax(pred)
         confidence = np.max(pred)
         results.append((subfifo_names[i], predicted_class, confidence))
 
     return results
 
-
+def softmax(x):
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum(axis=-1, keepdims=True)
 
 
 

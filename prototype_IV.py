@@ -131,9 +131,6 @@ def video_capture_with_canvas(video_path, display):
         #Inference Matrix            
         matrices_subfifos = fifo.prepare_subfifo_matrix()
 
-        emotion_classes = []
-        probs = []
-        
         global SEAL_COLOR, SEAL_COUNTER
 
         # Verify if subFIFOS preparation was successeful
@@ -163,9 +160,6 @@ def video_capture_with_canvas(video_path, display):
                 # Graphic Window that will be colored
                 SEAL_COLOR = new_color
                 SEAL_COUNTER = WINDOW_SIZE
-
-                emotion_classes.append(emotion_class)
-                probs.append(prob)
 
         # Update color buffer 
         if SEAL_COUNTER > 0:
