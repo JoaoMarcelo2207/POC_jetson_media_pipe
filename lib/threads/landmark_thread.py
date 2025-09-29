@@ -1,7 +1,6 @@
 import threading
 import cv2
 import mediapipe as mp
-import time
 from queue import Queue, Empty
 
 class LandmarkProcessor(threading.Thread):
@@ -43,8 +42,7 @@ class LandmarkProcessor(threading.Thread):
                 frame = self.input_queue.get(timeout=1)
             except Empty:
                 continue
-            
-            loop_thread_start = time.perf_counter()
+
             # Salva resolução original
             orig_h, orig_w, _ = frame.shape
 
@@ -74,10 +72,6 @@ class LandmarkProcessor(threading.Thread):
                     except Empty:
                         pass
                 self.output_queue.put_nowait(landmarks)
-
-                loop_thread_end = time.perf_counter()
-                loop_duration_thread = loop_thread_end - loop_thread_start
-                print(f"Tempo de processamento: {loop_duration_thread * 1000:.2f} ms")
 
             else:
                 # Também limpa a fila se não houve detecção

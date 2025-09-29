@@ -76,6 +76,17 @@ def video_capture_with_canvas(video_path, display):
     #Start thread for landmark detection
     landmark_thread = LandmarkProcessor()
     landmark_thread.start()
+    total_fps = 0.0
+    total_latency_pre = 0.0
+    total_latency_post = 0.0
+    total_ram_usage = 0.0
+    num_frames = 0.0
+    num_frames_pre = 0.0
+    num_frames_pos = 0.0
+    rede = False
+    fps_pre = 0.0
+    fps_post = 0.0
+
     
     while True:
         loop_start = time.perf_counter()
@@ -96,7 +107,7 @@ def video_capture_with_canvas(video_path, display):
         #If the thread didn't detect anything (first interaction)
         if landmarks is None:
             continue
-        
+
         # Normalized and raw points
         normalized_landmarks = gf.normalization(landmarks, (gf.normal_height_img, gf.normal_width_img))
         raw_landmarks = landmarks  # Direct raw points without normalization
@@ -131,12 +142,15 @@ def video_capture_with_canvas(video_path, display):
         #Inference Matrix            
         matrices_subfifos = fifo.prepare_subfifo_matrix()
 
-        global SEAL_COLOR, SEAL_COUNTER
-
+        global SEAL_COLOR, SEAL_COUNTER 
+        loop_end_pre = time.perf_counter()
+        latency_pre_ms = (loop_end_pre - loop_start) * 1000
         # Verify if subFIFOS preparation was successeful
         if matrices_subfifos is not None:
+            rede = True
             # Inference for the 3 subfifos
             results = fifo.infer_emotions_for_subfifos(matrices_subfifos)
+
             # Process each subFIFO result (A, B, C)
             for result in results:
                 subfifo_name, emotion_class, prob = result  # Unpacks the 3 values
@@ -160,6 +174,7 @@ def video_capture_with_canvas(video_path, display):
                 # Graphic Window that will be colored
                 SEAL_COLOR = new_color
                 SEAL_COUNTER = WINDOW_SIZE
+            loop_end_post = time.perf_counter()
 
         # Update color buffer 
         if SEAL_COUNTER > 0:
@@ -176,6 +191,7 @@ def video_capture_with_canvas(video_path, display):
 
         #FPS + RAM Usage
         loop_end = time.perf_counter()
+        
         ram_usage = process.memory_info().rss / 1024 / 1024  # in MB
         if video_path: # Sincronize the execution with video real time
                 loop_duration = loop_end - loop_start
@@ -186,9 +202,27 @@ def video_capture_with_canvas(video_path, display):
                 fps = 1.0 / (loop_duration + sleep_time) if (loop_duration + sleep_time) > 0 else 0.0
         else:
             fps = 1.0 / (loop_end - loop_start) if loop_end > loop_start else 0.0
-    
+
         label_text = f"FPS: {fps:.2f} | RAM: {ram_usage:.1f} MB"
+        print(f"Frame latency pré: {latency_pre_ms:.2f} ms")
         print(f"Uso da RAM: {ram_usage:.1f} MB")
+        print(f"FPS: {fps:.2f}")
+
+        if rede:
+            latency_post_ms = (loop_end_post - loop_end_pre) * 1000
+            fps_post += fps
+            total_latency_post += latency_post_ms
+            num_frames_pos += 1
+            print(f"pós: {latency_post_ms:.2f} ms")
+        else:
+            fps_pre += fps
+            num_frames_pre += 1
+
+        total_fps += fps
+        total_latency_pre += latency_pre_ms
+        total_ram_usage += ram_usage
+        num_frames += 1
+
         fps_pos = (positions["camera"][0] + 10, positions["camera"][1] + 20)
         cv2.putText(canvas, label_text, fps_pos, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
@@ -201,6 +235,19 @@ def video_capture_with_canvas(video_path, display):
     landmark_thread.stop()
     cap.release()
     cv2.destroyAllWindows()
+    # cálculo das médias
+    avg_fps = total_fps / num_frames
+    avg_latency_pre = total_latency_pre / num_frames
+    avg_latency_post = total_latency_post / num_frames
+    avg_ram_usage = total_ram_usage / num_frames
+    avg_fps_pre = fps_pre / num_frames_pre
+    avg_fps_post = fps_post / num_frames_pos
+    print(f"Média FPS pre: {avg_fps_pre:.2f}")
+    print(f"Média FPS pós: {avg_fps_post:.2f}")
+    print(f"Média FPS: {avg_fps:.2f}")
+    print(f"Média Latência Pré: {avg_latency_pre:.2f} ms")
+    print(f"Média Latência Pós: {avg_latency_post:.2f} ms")
+    print(f"Média Uso da RAM: {avg_ram_usage:.1f} MB")
     print("Capture ended.")
 
 def main():
@@ -209,7 +256,6 @@ def main():
     parser.add_argument('-v', '--video', type=str, help='Path to video file (if provided, processes video instead of camera)')
     
     args = parser.parse_args()
-
     video_capture_with_canvas(args.video, args.display)
 
 if __name__ == "__main__":
